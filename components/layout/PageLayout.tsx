@@ -12,8 +12,8 @@ const PageLayout: React.FC<LayoutProps> = ({ children }) => {
     const isHomePage = pathname === '/';
 
     return (
-        <div className={`bg-cover bg-center bg-no-repeat bg-fixed ${isHomePage ? 'min-h-screen' : 'h-fit'}`}
-            style={{ backgroundImage: "url('/hero.png')" }}>
+        <div className={`bg-cover bg-center bg-no-repeat bg-fixed ${isHomePage ? 'min-h-screen' : 'h-max'}`}
+            style={{ backgroundImage: isHomePage ? "url('/hero.png')" : "url('/others.png')" }}>
             <Navbar />
             <main className="relative">
                 {children}

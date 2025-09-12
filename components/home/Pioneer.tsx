@@ -4,10 +4,10 @@ import React from 'react';
 export default function Pioneer() {
     return (
         <section className="min-h-screen bg-gray-50 flex items-center">
-            <div className="container mx-auto px-6 lg:px-8">
+            <div className="px-4 sm:px-0">
                 <div className="grid lg:grid-cols-2 gap-12 items-center">
                     {/* Left Content */}
-                    <div className="space-y-8">
+                    <div className="space-y-8 sm:pl-28">
                         <h1 className="text-3xl sm:text-5xl font-bold text-gray-900 leading-tight">
                             Be a Pioneer in{' '}
                             <span className="block">Autonomous</span>
@@ -25,8 +25,8 @@ export default function Pioneer() {
                     </div>
 
                     {/* Right Image */}
-                    <div className="relative">
-                        <Image src="/pioneer.png" alt="pioneer" width={700} height={600} />
+                    <div className="w-full">
+                        <Image src="/pioneer.png" alt="pioneer" width={700} height={650} className='rounded-md' />
                     </div>
                 </div>
             </div>

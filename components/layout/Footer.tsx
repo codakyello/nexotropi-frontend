@@ -1,9 +1,12 @@
-import React from 'react';
+"use client"
+import React, { useState } from 'react';
 import { Linkedin, Facebook, Instagram, Youtube } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
+import WaitlistModal from '../modals/WaitListModal';
 
 const Footer = () => {
+    const [isModalOpen, setIsModalOpen] = useState(false)
     return (
         <footer className="text-white bg-cover bg-center bg-no-repeat bg-fixed"
             style={{ backgroundImage: "url('/footercover.png')" }}
@@ -19,7 +22,7 @@ const Footer = () => {
                         <br />
                         first product demos.
                     </p>
-                    <button className="bg-white text-indigo-950 px-12 py-4 cursor-pointer rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
+                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-indigo-950 px-12 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
                         Join Waitlist
                     </button>
                 </div>
@@ -75,16 +78,20 @@ const Footer = () => {
                             >
                                 Privacy Policy
                             </a>
-                            <a
-                                href="#"
+                            <Link
+                                href="/terms-of-service"
                                 className="text-indigo-300 hover:text-white transition-colors text-sm"
                             >
                                 Terms & Conditions
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </div>
             </div>
+            <WaitlistModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+            />
         </footer>
     );
 };

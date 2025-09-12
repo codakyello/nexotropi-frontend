@@ -1,4 +1,7 @@
+"use client"
+import { useState } from "react";
 import PageLayout from "../layout/PageLayout";
+import WaitlistModal from "../modals/WaitListModal";
 
 interface HeroSectionProps {
     title: string;
@@ -11,6 +14,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     subtitle,
     showButtons = true
 }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false)
     return (
         <PageLayout>
             <section className="relative z-10 px-6 py-20 md:py-32">
@@ -24,7 +28,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 
                     {showButtons && (
                         <div className="flex flex-row gap-4 justify-center items-center">
-                            <button className="bg-white text-gray-900 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                            <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-gray-900 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
                                 Join Waitlist
                             </button>
                             <button className="border border-white text-white px-8 py-3 rounded-lg font-medium hover:bg-white hover:text-purple-900 transition-colors">
@@ -34,6 +38,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                     )}
                 </div>
             </section>
+            <WaitlistModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+            />
         </PageLayout>
     );
 };

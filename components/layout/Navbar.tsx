@@ -3,10 +3,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import Image from 'next/image';
+import WaitlistModal from '../modals/WaitListModal';
 
 const Header: React.FC = () => {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false)
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -50,7 +52,7 @@ const Header: React.FC = () => {
                 </div>
 
                 {/* Desktop CTA Button */}
-                <button className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                <button onClick={() => setIsModalOpen(true)} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
                     Join Waitlist
                 </button>
 
@@ -142,6 +144,10 @@ const Header: React.FC = () => {
                     </div>
                 </div>
             )}
+            <WaitlistModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+            />
         </header>
     );
 };

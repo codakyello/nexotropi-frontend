@@ -3,7 +3,7 @@ import React from 'react';
 
 const Solution = () => {
     return (
-        <section className="bg-[f9fafc] py-16 px-6">
+        <section className="bg-[#e8edf259] py-16 px-6">
             <div className="max-w-6xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">
@@ -18,7 +18,7 @@ const Solution = () => {
                 {/* Three Column Grid */}
                 <div className="grid md:grid-cols-3 gap-8">
                     {/* Card 1 */}
-                    <div className="relative border border-[#E9EBF8] border-b-4 border-b-black rounded-lg p-8">
+                    <div className="relative border border-[#E9EBF8] bg-white border-b-4 border-b-black rounded-lg p-8">
                         <div className="mb-4">
                             <Image src="/create.svg" alt="high negotiation" width={70} height={70} />
                         </div>
@@ -31,7 +31,7 @@ const Solution = () => {
                             Create a &apos;living&apos; AI replica of your business—not just a  machine—including operations, finance, and supply chain.
                         </p>
                     </div>
-                    <div className="relative border border-[#E9EBF8] rounded-lg p-8">
+                    <div className="relative border bg-white border-[#E9EBF8] rounded-lg p-8">
 
                         <div className="mb-4">
                             <Image src="/ai.svg" alt="high negotiation" width={70} height={70} />
@@ -45,7 +45,7 @@ const Solution = () => {
                             AI agents negotiate contracts and optimize relationships with other  companies in real-time, 24/7.
                         </p>
                     </div>
-                    <div className="relative border border-[#E9EBF8] border-b-4 border-b-black rounded-lg p-8">
+                    <div className="relative border bg-white border-[#E9EBF8] border-b-4 border-b-black rounded-lg p-8">
                         <div className="mb-4">
                             <Image src="/agree.svg" alt="high negotiation" width={70} height={70} />
                         </div>
