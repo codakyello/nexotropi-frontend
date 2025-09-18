@@ -19,7 +19,7 @@ const StartNegotiationPage = () => {
             {/* Title and Status Section */}
             <div className="flex flex-col gap-2 mb-10">
                 <h1 className="text-2xl font-bold text-gray-900">Start New Negotiations</h1>
-                <p className="text-sm font-normal text-gray-600">Monitor and control AI-driven negotiations in real-time</p>
+                <p className="text-sm font-normal text-gray-600">Monitor and control AI-driven negotiations in real-time.</p>
             </div>
             <NegotiationForm />
         </div>
