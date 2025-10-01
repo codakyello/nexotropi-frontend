@@ -37,14 +37,14 @@ const UsersSidebar = () => {
                 { icon: '/dashboard.svg', label: 'Dashboard', href: '/user/dashboard' },
                 { icon: '/share.svg', label: 'Ecosystem', href: '/user/ecosystem' },
                 { icon: '/negotiate.svg', label: 'Negotiation', href: '/user/negotiation' },
-                { icon: '/analyse.svg', label: 'Analysis', href: '/user/analysis' },
-                { icon: '/audit.svg', label: 'Audit Trail', href: '/user/audit-trail' },
+                { icon: '/analyse.svg', label: 'Analysis', href: '#' },
+                { icon: '/audit.svg', label: 'Audit Trail', href: '#' },
             ]
         },
         {
             section: 'bottom',
             items: [
-                { icon: Settings, label: 'Settings', href: '/settings' },
+                { icon: Settings, label: 'Settings', href: '#' },
             ]
         }
     ];

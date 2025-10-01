@@ -18,7 +18,7 @@ const PricingHero: React.FC<HeroSectionProps> = ({
                     <h1 className="text-4xl font-bold mb-6 leading-tight">
                         {title}
                     </h1>
-                    <p className="text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
+                    <p className="text-2xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
                         {subtitle}
                     </p>
 

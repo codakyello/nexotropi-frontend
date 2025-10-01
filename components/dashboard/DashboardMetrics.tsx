@@ -1,8 +1,11 @@
+"use client"
 import React from 'react';
 import { Database, Monitor, Shield, Users, FileText, Calendar, Network, TrendingUp, TrendingDown, Plus } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 const DashboardMetrics = () => {
+    const router = useRouter()
     return (
         <div className="max-w-7xl mx-auto mb-12">
             {/* Metrics Cards */}
@@ -85,7 +88,7 @@ const DashboardMetrics = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Start new negotiation */}
-                    <button className="bg-[#F6F6F6] cursor-pointer rounded-xl px-4 border border-gray-100 hover:shadow-md transition-shadow duration-200 text-left group">
+                    <button onClick={() => router.push("/user/negotiation")} className="bg-[#F6F6F6] cursor-pointer rounded-xl px-4 border border-gray-100 hover:shadow-md transition-shadow duration-200 text-left group">
                         <div className="flex items-center">
                             <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mr-4 transition-colors duration-200">
                                 <FileText className="w-6 h-6 text-gray-600" />
@@ -105,7 +108,7 @@ const DashboardMetrics = () => {
                     </button>
 
                     {/* View Ecosystem */}
-                    <button className="bg-[#F6F6F6] cursor-pointer rounded-xl px-4 border border-gray-100 hover:shadow-md transition-shadow duration-200 text-left group">
+                    <button onClick={() => router.push("/user/ecosystem")} className="bg-[#F6F6F6] cursor-pointer rounded-xl px-4 border border-gray-100 hover:shadow-md transition-shadow duration-200 text-left group">
                         <div className="flex items-center">
                             <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mr-4 transition-colors duration-200">
                                 <Network className="w-6 h-6 text-gray-600" />
