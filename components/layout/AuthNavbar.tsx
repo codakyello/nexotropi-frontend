@@ -1,9 +1,7 @@
 "use client"
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import Image from 'next/image';
-import WaitlistModal from '../modals/WaitListModal';
 
 const AuthHeader: React.FC = () => {
 

@@ -1,8 +1,10 @@
 "use client"
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+    const router = useRouter()
     const [email, setEmail] = useState('chioma@kargoo.io');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -11,12 +13,12 @@ export default function LoginPage() {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         console.log('Login submitted');
+        router.push("/user/dashboard")
     };
 
     const handleGoogleSignIn = () => {
         console.log('Google sign in clicked');
     };
-
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
             <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-sm p-8 md:p-12">

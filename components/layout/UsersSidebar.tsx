@@ -37,8 +37,8 @@ const UsersSidebar = () => {
                 { icon: '/dashboard.svg', label: 'Dashboard', href: '/user/dashboard' },
                 { icon: '/share.svg', label: 'Ecosystem', href: '/user/ecosystem' },
                 { icon: '/negotiate.svg', label: 'Negotiation', href: '/user/negotiation' },
-                { icon: '/analyse.svg', label: 'Analysis', href: '#' },
-                { icon: '/audit.svg', label: 'Audit Trail', href: '#' },
+                { icon: '/analyse.svg', label: 'Analytics', href: '/user/analytics' },
+                { icon: '/audit.svg', label: 'Audit Trail', href: '/user/audit' },
             ]
         },
         {
@@ -68,7 +68,7 @@ const UsersSidebar = () => {
     const handleLogoutClick = (): void => {
         Cookies.remove('access_token');
         Cookies.remove('refresh_token');
-        router.push('/auth');
+        router.push('/auth/sign-in');
     };
 
     // Helper function to render icons
