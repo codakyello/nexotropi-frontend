@@ -44,7 +44,7 @@ const UsersSidebar = () => {
         {
             section: 'bottom',
             items: [
-                { icon: Settings, label: 'Settings', href: '#' },
+                { icon: Settings, label: 'Settings', href: '/user/settings' },
             ]
         }
     ];
@@ -87,7 +87,7 @@ const UsersSidebar = () => {
             const IconComponent = icon;
             return (
                 <IconComponent
-                    className={`h-5 w-5 mr-4 ${isActive ? 'text-[#1A4A7A]' : 'text-gray-500'}`}
+                    className={`h-5 cursor-pointer w-5 mr-4 ${isActive ? 'text-[#1A4A7A]' : 'text-gray-500'}`}
                 />
             );
         }
@@ -139,8 +139,8 @@ const UsersSidebar = () => {
                             key={itemIndex}
                             type="button"
                             onClick={() => handleMenuItemClick(item)}
-                            className={`flex items-center w-full px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 text-left ${isActive
-                                ? 'bg-blue-50 text-blue-700'
+                            className={`flex items-center cursor-pointer w-full px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 text-left ${isActive
+                                ? 'bg-blue-50 text-[#1A4A7A]'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                 }`}
                         >
