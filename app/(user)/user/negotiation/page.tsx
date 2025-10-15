@@ -1,6 +1,6 @@
-import NegotiationsGrid from '@/components/negotiation/NegotiationsGrid'
-import NegotiationTable from '@/components/negotiation/NegotiationTable'
-import SearchNegotiation from '@/components/negotiation/SearchNegotiation'
+import NegotiationsGrid from '@/components/users/negotiation/NegotiationsGrid'
+import NegotiationTable from '@/components/users/negotiation/NegotiationTable'
+import SearchNegotiation from '@/components/users/negotiation/SearchNegotiation'
 import Link from 'next/link'
 import React from 'react'
 

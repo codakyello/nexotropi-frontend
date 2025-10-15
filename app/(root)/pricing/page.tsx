@@ -1,6 +1,6 @@
-import Pricing from '@/components/home/Pricing'
-import PricingHero from '@/components/pricing/PricingHero'
-import TermsSection from '@/components/terms/TermsSection'
+import Pricing from '@/components/root/home/Pricing'
+import PricingHero from '@/components/root/pricing/PricingHero'
+import TermsSection from '@/components/root/terms/TermsSection'
 import React from 'react'
 
 const page = () => {

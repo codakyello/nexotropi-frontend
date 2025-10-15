@@ -1,4 +1,4 @@
-import PageLayout from "../layout/PageLayout";
+import PageLayout from "../../layout/PageLayout";
 
 interface HeroSectionProps {
     title: string;
@@ -6,7 +6,7 @@ interface HeroSectionProps {
     showButtons?: boolean;
 }
 
-const PricingHero: React.FC<HeroSectionProps> = ({
+const TermsHero: React.FC<HeroSectionProps> = ({
     title,
     subtitle,
     showButtons = false
@@ -18,9 +18,10 @@ const PricingHero: React.FC<HeroSectionProps> = ({
                     <h1 className="text-4xl font-bold mb-6 leading-tight">
                         {title}
                     </h1>
-                    <p className="text-2xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
+                    <p className="text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
                         {subtitle}
                     </p>
+                    <p className="text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">Last Updated: July 25, 2025</p>
 
                     {showButtons && (
                         <div className="flex flex-row gap-4 justify-center items-center">
@@ -38,4 +39,4 @@ const PricingHero: React.FC<HeroSectionProps> = ({
     );
 };
 
-export default PricingHero;
+export default TermsHero;

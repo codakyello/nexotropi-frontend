@@ -1,5 +1,5 @@
-import TermsHero from '@/components/terms/TermsHero'
-import TermsSection from '@/components/terms/TermsSection'
+import TermsHero from '@/components/root/terms/TermsHero'
+import TermsSection from '@/components/root/terms/TermsSection'
 import React from 'react'
 
 const page = () => {

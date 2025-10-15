@@ -1,4 +1,4 @@
-import PageLayout from "../layout/PageLayout";
+import PageLayout from "../../layout/PageLayout";
 
 interface HeroSectionProps {
     title: string;
@@ -6,7 +6,7 @@ interface HeroSectionProps {
     showButtons?: boolean;
 }
 
-const WhyChooseHero: React.FC<HeroSectionProps> = ({
+const ContactHero: React.FC<HeroSectionProps> = ({
     title,
     subtitle,
     showButtons = false
@@ -38,4 +38,4 @@ const WhyChooseHero: React.FC<HeroSectionProps> = ({
     );
 };
 
-export default WhyChooseHero;
+export default ContactHero;

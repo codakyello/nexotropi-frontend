@@ -1,5 +1,5 @@
-import DashboardMetrics from '@/components/dashboard/DashboardMetrics'
-import RecentActivity from '@/components/dashboard/RecentActivity'
+import DashboardMetrics from '@/components/users/dashboard/DashboardMetrics'
+import RecentActivity from '@/components/users/dashboard/RecentActivity'
 import Link from 'next/link'
 import React from 'react'
 

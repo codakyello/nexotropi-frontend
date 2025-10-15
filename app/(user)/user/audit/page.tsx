@@ -1,4 +1,4 @@
-import ActivityLogs from '@/components/audit-trail/ActivityLogs'
+import ActivityLogs from '@/components/users/audit-trail/ActivityLogs'
 import { RefreshCcw, Upload } from 'lucide-react'
 import React from 'react'
 

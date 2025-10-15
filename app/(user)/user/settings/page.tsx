@@ -1,5 +1,5 @@
 "use client"
-import AccountSettings from '@/components/settings/AccountSettings'
+import AccountSettings from '@/components/users/settings/AccountSettings'
 import React, { useState } from 'react'
 
 const page = () => {

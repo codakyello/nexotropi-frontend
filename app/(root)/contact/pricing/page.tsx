@@ -1,7 +1,7 @@
-import FaqSection from '@/components/home/FaqSection'
-import Pricing from '@/components/home/Pricing'
-import PricingComparisonTable from '@/components/pricing/OurPlans'
-import PricingHero from '@/components/pricing/PricingHero'
+import FaqSection from '@/components/root/home/FaqSection'
+import Pricing from '@/components/root/home/Pricing'
+import PricingComparisonTable from '@/components/root/pricing/OurPlans'
+import PricingHero from '@/components/root/pricing/PricingHero'
 import React from 'react'
 
 const page = () => {

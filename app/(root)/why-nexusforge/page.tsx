@@ -1,7 +1,7 @@
-import Businesses from '@/components/why-nexusforge/Businesses'
-import MissionSection from '@/components/why-nexusforge/Mission'
-import WhatWeDoSection from '@/components/why-nexusforge/WhatWeDo'
-import WhyChooseHero from '@/components/whychooseus/WhyChooseHero'
+import Businesses from '@/components/root/why-nexusforge/Businesses'
+import MissionSection from '@/components/root/why-nexusforge/Mission'
+import WhatWeDoSection from '@/components/root/why-nexusforge/WhatWeDo'
+import WhyChooseHero from '@/components/root/whychooseus/WhyChooseHero'
 import React from 'react'
 
 const page = () => {

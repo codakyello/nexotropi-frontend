@@ -2,7 +2,7 @@
 import UserNavbar from "./UserNavbar";
 import UsersSidebar from "./UsersSidebar";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function UserDashboardLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex h-screen bg-gray-50">

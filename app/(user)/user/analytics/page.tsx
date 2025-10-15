@@ -1,9 +1,9 @@
 "use client"
 import React, { useState } from 'react';
 import { Upload } from 'lucide-react';
-import OverviewMetrics from '@/components/analytics/OverviewMetrics';
-import NegotiationMetrics from '@/components/analytics/NegotiationMetrics';
-import ReportMetrics from '@/components/analytics/ReportMetrics';
+import OverviewMetrics from '@/components/users/analytics/OverviewMetrics';
+import NegotiationMetrics from '@/components/users/analytics/NegotiationMetrics';
+import ReportMetrics from '@/components/users/analytics/ReportMetrics';
 
 const AnalyticsPage = () => {
     const [selectedPeriod, setSelectedPeriod] = useState('Last 30 days');

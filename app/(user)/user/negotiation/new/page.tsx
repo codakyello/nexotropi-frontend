@@ -1,6 +1,6 @@
 "use client"
-import NegotiationForm from '@/components/negotiation/NegotiationForm'
-import NegotiationSummary from '@/components/negotiation/NegotiationSummary'
+import NegotiationForm from '@/components/users/negotiation/NegotiationForm'
+import NegotiationSummary from '@/components/users/negotiation/NegotiationSummary'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React from 'react'

@@ -1,5 +1,5 @@
 "use client"
-import LiveNegotiations from '@/components/negotiation/LiveNegotiation'
+import LiveNegotiations from '@/components/users/negotiation/LiveNegotiation'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import React from 'react'

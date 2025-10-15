@@ -1,4 +1,4 @@
-import NetworkOverview from '@/components/ecosystem/NetworkOverview'
+import NetworkOverview from '@/components/users/ecosystem/NetworkOverview'
 import React from 'react'
 
 const page = () => {
