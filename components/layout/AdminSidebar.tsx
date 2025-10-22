@@ -36,7 +36,7 @@ const AdminSidebar = () => {
             items: [
                 { icon: '/dashboard.svg', label: 'Dashboard', href: '/admin/dashboard' },
                 { icon: '/menu.svg', label: 'Content Management', href: '/admin/content-management' },
-                { icon: '/person.svg', label: 'Users', href: '/admin/users' },
+                { icon: '/persons.svg', label: 'Users', href: '/admin/users' },
                 { icon: '/roles.svg', label: 'Roles & Permisssions', href: '/admin/permission' },
                 { icon: '/lock.svg', label: 'Security Logs', href: '/admin/security' },
             ]
@@ -104,7 +104,7 @@ const AdminSidebar = () => {
 
             {/* Navigation Menu */}
             <div className="flex-1 py-8">
-                <nav className="px-4">
+                <nav className="px-3">
                     {/* Main menu items */}
                     <div className="space-y-3">
                         {menuItems[0].items.map((item: MenuItem, itemIndex: number) => {

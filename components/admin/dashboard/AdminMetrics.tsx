@@ -68,7 +68,7 @@ const AdminMetrics = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">Quick actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {/* Start new negotiation */}
-                    <button onClick={() => router.push("/user/negotiation")} className="bg-[#F6F6F6] cursor-pointer rounded-xl px-4 border border-gray-100 hover:shadow-md transition-shadow duration-200 text-left group">
+                    <button onClick={() => router.push("/admin/content-management")} className="bg-[#F6F6F6] cursor-pointer rounded-xl px-4 border border-gray-100 hover:shadow-md transition-shadow duration-200 text-left group">
                         <div className="flex items-center justify-center">
                             <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center mr-3 transition-colors duration-200">
                                 <img src="/quick.svg" className="w-6 h-6 text-gray-600" />
