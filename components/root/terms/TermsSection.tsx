@@ -104,7 +104,7 @@ const TermsSection = () => {
                                     <div>
                                         <p className="text-gray-700 leading-relaxed">
                                             <span className="font-semibold">Company&apos;s IP:</span> The Services and their original content, features, and functionality are and will
-                                            remain the exclusive property of NexusForge AI, Inc.
+                                            remain the exclusive property of Nexotropi, Inc.
                                         </p>
                                     </div>
 
@@ -153,7 +153,7 @@ const TermsSection = () => {
                             <section id="limitation" className="mb-12">
                                 <h2 className="text-2xl font-bold text-gray-900 mb-6">6. Limitation of Liability</h2>
                                 <p className="text-gray-700 leading-relaxed">
-                                    In no event shall NexusForge AI, Inc., nor its directors, employees, partners, agents, suppliers, or
+                                    In no event shall Nexotropi, Inc., nor its directors, employees, partners, agents, suppliers, or
                                     affiliates, be liable for any indirect, incidental, special, consequential, or punitive damages,
                                     including without limitation, loss of profits, data, use, goodwill, or other intangible losses,
                                     resulting from (a) your access to or use of or inability to access or use the Services; (b) any
@@ -191,7 +191,7 @@ const TermsSection = () => {
                                     If you have any questions about these Terms, please contact us at:
                                 </p>
                                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-6">
-                                    <p className="text-gray-900 font-semibold mb-1">NexusForge AI, Inc.</p>
+                                    <p className="text-gray-900 font-semibold mb-1">Nexotropi, Inc.</p>
                                     <p className="text-[#1A4A7A] font-medium">nexusforge-ai@outlook.com</p>
                                 </div>
                             </section>

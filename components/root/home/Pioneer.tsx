@@ -15,7 +15,7 @@ export default function Pioneer() {
                         </h1>
 
                         <p className="text-base text-gray-600 leading-relaxed max-w-lg">
-                            NexusForge AI is in its early stages of development. Join our<br></br>
+                            Nexotropi is in its early stages of development. Join our<br></br>
                             waitlist for exclusive access and help us shape the future of B2B.
                         </p>
 

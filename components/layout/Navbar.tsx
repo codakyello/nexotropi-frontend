@@ -23,7 +23,7 @@ const Header: React.FC = () => {
             <nav className="flex items-center justify-between max-w-7xl mx-auto">
                 {/* Logo */}
                 <Link href="/" className="hidden sm:flex items-center space-x-2 text-white">
-                    <Image src="/nexuslogo.png" width={188} height={32} alt="logo" />
+                    <Image src="/nexotropoli.png" width={188} height={32} alt="logo" />
                 </Link>
 
                 {/* Desktop Navigation Links */}
@@ -33,7 +33,7 @@ const Header: React.FC = () => {
                         className={`text-white hover:text-gray-200 transition-colors ${pathname === '/why-nexusforge' ? 'font-medium' : ''
                             }`}
                     >
-                        Why NexusForge
+                        Why Nexotropi
                     </Link>
                     <Link
                         href="/pricing"

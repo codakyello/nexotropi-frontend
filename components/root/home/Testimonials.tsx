@@ -42,7 +42,7 @@ const Testimonials = () => {
                     <div className="flex-1 max-w-2xl">
                         <div className="mb-8">
                             <p className="text-lg md:text-xl text-gray-700 leading-relaxed mb-8">
-                            &apos;With NexusForge AI&apos;s digital ecosystem replication, we finally have
+                                &apos;With Nexotropi&apos;s digital ecosystem replication, we finally have
                                 a living, breathing view of our entire enterprise. We can see every
                                 relationship, process, and dependency in real time — it&apos;s like
                                 having an x-ray of our business operations. The multimodal data

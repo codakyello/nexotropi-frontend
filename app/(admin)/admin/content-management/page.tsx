@@ -4,7 +4,7 @@ import ProblemSectionManager from '@/components/admin/content-management/Problem
 import SolutionSectionManager from '@/components/admin/content-management/SolutionSectionManager'
 import React, { useState } from 'react'
 
-const page = () => {
+const ContentManagement = () => {
     const [activeTab, setActiveTab] = useState('published');
     return (
         <div className='bg-gray-50'>
@@ -51,4 +51,4 @@ const page = () => {
     )
 }
 
-export default page
+export default ContentManagement

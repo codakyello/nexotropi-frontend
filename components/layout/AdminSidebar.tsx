@@ -38,7 +38,7 @@ const AdminSidebar = () => {
                 { icon: '/menu.svg', label: 'Content Management', href: '/admin/content-management' },
                 { icon: '/persons.svg', label: 'Users', href: '/admin/users' },
                 { icon: '/roles.svg', label: 'Roles & Permisssions', href: '/admin/permission' },
-                { icon: '/lock.svg', label: 'Security Logs', href: '/admin/security' },
+                { icon: '/lock.svg', label: 'Security Logs', href: '/admin/security-logs' },
             ]
         },
         {
@@ -98,7 +98,7 @@ const AdminSidebar = () => {
             {/* Header */}
             <div className="p-6 mt-4">
                 <Link href="/" className="hidden sm:flex items-center space-x-2 text-white">
-                    <Image src="/user.png" width={188} height={32} alt="logo" />
+                    <Image src="/nexotropi.png" width={188} height={32} alt="logo" />
                 </Link>
             </div>
 

@@ -11,7 +11,7 @@ const Solution = () => {
                         The Solution: <br></br> Living Digital Ecosystems.
                     </h1>
                     <p className="text-base text-gray-700 max-w-3xl mx-auto">
-                        NexusForge AI is a revolutionary platform that creates  hyper-realistic AI replicas of your business,<br></br> enabling them to autonomously  interact with other companies.
+                        Nexotropi is a revolutionary platform that creates  hyper-realistic AI replicas of your business,<br></br> enabling them to autonomously  interact with other companies.
                     </p>
                 </div>
 

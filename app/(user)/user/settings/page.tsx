@@ -2,7 +2,7 @@
 import AccountSettings from '@/components/users/settings/AccountSettings'
 import React, { useState } from 'react'
 
-const page = () => {
+const UserSettings = () => {
     const [activeTab, setActiveTab] = useState("account")
     return (
         <div className='bg-gray-50'>
@@ -59,4 +59,4 @@ const page = () => {
     )
 }
 
-export default page
+export default UserSettings

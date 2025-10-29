@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "NexusForge AI",
+  title: "Nexotropi",
   description: "Enabling autonomous negotiation and strategic simulation by creating living digital ecosystems of your business.",
 };
 

@@ -11,10 +11,10 @@ const page = () => {
                     {/* Left Content */}
                     <div className="flex-1 max-w-3xl">
                         <h1 className="text-2xl font-bold text-gray-900 mb-6 leading-tight">
-                            Welcome to the NexusForge AI Platform
+                            Welcome to the Nexotropi Platform
                         </h1>
                         <p className="text-base text-[#475467] leading-relaxed max-w-2xl">
-                            We're glad to have you here. NexusForge AI gives you smart tools, insights, and a seamless experience to power your journey.
+                            We're glad to have you here. Nexotropi gives you smart tools, insights, and a seamless experience to power your journey.
                         </p>
                     </div>
 

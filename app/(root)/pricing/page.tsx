@@ -6,7 +6,7 @@ import React from 'react'
 const page = () => {
     return (
         <>
-            <PricingHero title="NexusForge AI – Simple, Transparent Pricing" subtitle='Powerful AI simulations for every stage of your business journey. No hidden fees, no surprises.' />
+            <PricingHero title="Nexotropi – Simple, Transparent Pricing" subtitle='Powerful AI simulations for every stage of your business journey. No hidden fees, no surprises.' />
             <Pricing />
         </>
     )

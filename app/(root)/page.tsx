@@ -11,7 +11,7 @@ import React from 'react'
 const page = () => {
   return (
     <>
-      <HeroSection title="The Future of B2B Commerce is Autonomous." subtitle='NexusForge AI enables autonomous negotiation and strategic  simulation by creating living digital ecosystems of your business.' />
+      <HeroSection title="The Future of B2B Commerce is Autonomous." subtitle='Nexotropi enables autonomous negotiation and strategic  simulation by creating living digital ecosystems of your business.' />
       <SilentCrisis />
       <Solution />
       <CoreFeatures />

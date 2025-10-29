@@ -15,7 +15,7 @@ const WhatWeDoSection = () => {
 
                         <div className="space-y-6">
                             <p className="text-base leading-relaxed">
-                                NexusForge AI is not just a tool — its a transformation engine
+                                Nexotropi is not just a tool — its a transformation engine
                             </p>
 
                             <p className="text-base leading-relaxed">
@@ -27,7 +27,7 @@ const WhatWeDoSection = () => {
 
                         <div className="space-y-6">
                             <p className="text-base">
-                                With NexusForge AI, businesses can:
+                                With Nexotropi, businesses can:
                             </p>
 
                             <ul className="space-y-3 text-base">

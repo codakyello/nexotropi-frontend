@@ -18,7 +18,7 @@ const HeroSectionManager = ({ activeTab, setActiveTab }: HeroSectionManagerProps
     const [heroData, setHeroData] = useState({
         layoutType: 'centered',
         mainHeadline: 'The Future of B2B Commerce is Autonomous',
-        subHeadline: 'NexusForge AI enables autonomous negotiation and strategic simulation by creating living digital ecosystems of your business.',
+        subHeadline: 'Nexotropi enables autonomous negotiation and strategic simulation by creating living digital ecosystems of your business.',
         primaryCTA: 'Join Waitlist',
         secondaryCTA: 'Learn More',
         heroImage: null,

@@ -71,10 +71,10 @@ const CoreFeatures = () => {
                 {/* Header */}
                 <div className="text-center mb-16">
                     <h1 className="text-[1.7rem] sm:text-[2rem] font-bold text-white mb-6">
-                        NexusForge AI: Core Features
+                        Nexotropi: Core Features
                     </h1>
                     <p className="text-base text-slate-300 max-w-4xl mx-auto leading-relaxed">
-                        NexusForge AI&apos;s platform is built to deliver a comprehensive, intelligent, and autonomous solution for inter-<br></br>enterprise B2B interactions.
+                        Nexotropi&apos;s platform is built to deliver a comprehensive, intelligent, and autonomous solution for inter-<br></br>enterprise B2B interactions.
                     </p>
                 </div>
 

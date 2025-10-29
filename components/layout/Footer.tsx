@@ -18,7 +18,7 @@ const Footer = () => {
                         Ready to Forge Your Autonomous Future?
                     </h1>
                     <p className="text-base text-indigo-200 mb-12 max-w-3xl mx-auto leading-relaxed">
-                        Join our exclusive waitlist for early access to the NexusForge AI platform and our
+                        Join our exclusive waitlist for early access to the Nexotropi platform and our
                         <br />
                         first product demos.
                     </p>
@@ -34,7 +34,7 @@ const Footer = () => {
                     <div className="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
 
                         <Link href="/" className="flex items-center space-x-2 text-white">
-                            <Image src="/nexuslogo.png" width={188} height={32} alt="logo" />
+                            <Image src="/nexotropoli.png" width={188} height={32} alt="logo" />
                         </Link>
 
                         {/* Social Media Icons */}
@@ -69,7 +69,7 @@ const Footer = () => {
                     {/* Bottom Row */}
                     <div className="flex flex-col md:flex-row justify-between items-center mt-8 pt-8 border-t border-indigo-800 space-y-4 md:space-y-0">
                         <p className="text-indigo-300 text-sm">
-                            © 2025 NexusForge AI. All rights reserved.
+                            © 2025 Nexotropi. All rights reserved.
                         </p>
                         <div className="flex items-center space-x-8">
                             <a

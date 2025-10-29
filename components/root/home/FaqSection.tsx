@@ -8,36 +8,36 @@ export default function FaqSection() {
 
     const faqs = [
         {
-            question: "What is NexusForge AI?",
-            answer: "NexusForge AI is a pioneering B2B platform that creates \"living digital ecosystems\"—hyper-realistic AI replicas of entire businesses. These AI replicas can then autonomously interact with each other, simulating and negotiating complex business deals in a virtual environment before translating the outcomes into real-world actions."
+            question: "What is Nexotropi?",
+            answer: "Nexotropi is a pioneering B2B platform that creates \"living digital ecosystems\"—hyper-realistic AI replicas of entire businesses. These AI replicas can then autonomously interact with each other, simulating and negotiating complex business deals in a virtual environment before translating the outcomes into real-world actions."
         },
         {
-            question: "How is NexusForge AI different from a traditional digital twin or a chatbot?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            question: "How is Nexotropi different from a traditional digital twin or a chatbot?",
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         },
         {
-            question: "How is NexusForge AI different from a traditional digital twin or a chatbot?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            question: "How is Nexotropi different from a traditional digital twin or a chatbot?",
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         },
         {
             question: "Can the AI really negotiate on my behalf?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         },
         {
             question: "How is my company's data kept safe and private?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         },
         {
             question: "What kinds of business deals can the AI negotiate?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         },
         {
             question: "How long does a pilot program take and what's the cost?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         },
         {
             question: "Who is your target customer?",
-            answer: "How is NexusForge AI different from a traditional digital twin or a chatbot?"
+            answer: "How is Nexotropi different from a traditional digital twin or a chatbot?"
         }
     ];
 

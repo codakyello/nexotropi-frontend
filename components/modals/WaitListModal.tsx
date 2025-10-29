@@ -86,7 +86,7 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                     <>
                         <DialogHeader>
                             <DialogTitle className="text-xl font-semibold text-gray-900">
-                                NexusForge AI – Early Access Waitlist Form
+                                Nexotropi – Early Access Waitlist Form
                             </DialogTitle>
                         </DialogHeader>
 
@@ -159,7 +159,7 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                             {/* Usage Description */}
                             <div className="space-y-2">
                                 <Label htmlFor="usage" className="text-sm text-[#5D6679]">
-                                    How do you plan to use NexusForge AI?
+                                    How do you plan to use Nexotropi?
                                 </Label>
                                 <Textarea
                                     id="usage"
@@ -231,7 +231,7 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                 <Check className="h-8 w-8 text-green-600" />
                             </div>
                             <DialogTitle className="text-3xl font-bold text-gray-900 mb-2">You&apos;re In!</DialogTitle>
-                            <h3 className="text-lg text-gray-600 mb-4">Welcome to NexusForge AI Early Access</h3>
+                            <h3 className="text-lg text-gray-600 mb-4">Welcome to Nexotropi Early Access</h3>
                             <p className="text-gray-600 text-sm mb-6">
                                 Congratulations! You&apos;ve officially secured your spot on our waitlist.
                             </p>

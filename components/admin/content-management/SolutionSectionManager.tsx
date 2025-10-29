@@ -17,7 +17,7 @@ interface SolutionSectionManagerProps {
 const SolutionSectionManager = ({ activeTab, setActiveTab }: SolutionSectionManagerProps) => {
     const [publishedData, setPublishedData] = useState({
         mainHeadline: 'The Solution: Living Digital Ecosystems.',
-        subHeadline: 'NexusForge AI is a revolutionary platform that creates hyper-realistic AI replicas of your business, enabling them to autonomously interact with other companies.',
+        subHeadline: 'Nexotropi is a revolutionary platform that creates hyper-realistic AI replicas of your business, enabling them to autonomously interact with other companies.',
         pillars: [
             {
                 id: 1,

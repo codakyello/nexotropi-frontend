@@ -24,7 +24,7 @@ export default function LoginPage() {
             <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-sm p-8 md:p-12">
                 <div className="text-center mb-8">
                     <h1 className="text-2xl font-bold text-gray-900 mb-3">
-                        Welcome Back to NexusForge AI
+                        Welcome Back to Nexotropi
                     </h1>
                     <p className="text-[#959595] text-sm">
                         Your gateway to clarity, automation,
