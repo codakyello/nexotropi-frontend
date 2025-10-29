@@ -10,13 +10,13 @@ const ContentManagement = () => {
         <div className='bg-gray-50'>
             <div className="relative p-8 mb-2">
                 <div className="flex items-center justify-between">
-                    {/* Left Content */}
+                    {/* Left Content */} 
                     <div className="flex-1 max-w-3xl">
                         <h1 className="text-2xl font-bold text-gray-900 mb-6 leading-tight">
                             Content Management
                         </h1>
                         <p className="text-base text-[#475467] leading-relaxed max-w-2xl">
-                            Quickly update the most visible section of the landing page to keep it fresh and engaging.
+                            Quickly update the most visible section of the landing page to keep it fresh and engaging
                         </p>
                     </div>
                 </div>
