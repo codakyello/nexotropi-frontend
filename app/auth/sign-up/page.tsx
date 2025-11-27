@@ -1,22 +1,64 @@
 "use client"
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, HelpCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, HelpCircle, Loader2 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { useRegister } from '@/services/requests/auth';
+import Link from 'next/link';
+
+// Zod validation schema
+const signupSchema = z.object({
+    full_name: z.string().min(2, 'Full name must be at least 2 characters'),
+    email: z.string().email('Please enter a valid email address'),
+    password: z.string()
+        .min(8, 'Password must be at least 8 characters')
+        .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+        .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
+        .regex(/[0-9]/, 'Password must contain at least one number'),
+    confirmPassword: z.string()
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+});
+
+type SignupFormData = z.infer<typeof signupSchema>;
 
 export default function SignUpPage() {
-    const [fullName, setFullName] = useState('chioma@kargoo.io');
-    const [email, setEmail] = useState('chioma@kargoo.io');
-    const [password, setPassword] = useState('');
-    const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    const handleSubmit = () => {
-        console.log('Sign up submitted');
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+        watch
+    } = useForm<SignupFormData>({
+        resolver: zodResolver(signupSchema),
+        defaultValues: {
+            full_name: '',
+            email: '',
+            password: '',
+            confirmPassword: ''
+        }
+    });
+
+    const { mutate: registerUser, isPending: registering, isError, error, isSuccess } = useRegister();
+
+    const onSubmit = (data: SignupFormData) => {
+        // Split full name into first_name and last_name
+        const nameParts = data.full_name.trim().split(' ');
+        const first_name = nameParts[0] || '';
+        const last_name = nameParts.slice(1).join(' ') || nameParts[0]; // Use first name as last name if only one name provided
+
+        registerUser({
+            email: data.email,
+            password: data.password,
+            first_name,
+            last_name
+        });
     };
 
-    const handleGoogleSignIn = () => {
-        console.log('Google sign up clicked');
-    };
 
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -32,22 +74,39 @@ export default function SignUpPage() {
                     </p>
                 </div>
 
-                <div className="space-y-5">
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    {/* Success Message */}
+                    {isSuccess && (
+                        <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+                            Account created successfully! Please check your email.
+                        </div>
+                    )}
+
+                    {/* Error Message */}
+                    {isError && (
+                        <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+                            {error?.response?.data?.detail}
+                        </div>
+                    )}
+
                     <div>
-                        <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                            Full Nmae
+                        <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-2">
+                            Full Name*
                         </label>
                         <div className="relative">
                             <input
                                 type="text"
-                                id="fullName"
-                                value={fullName}
-                                onChange={(e) => setFullName(e.target.value)}
-                                className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                id="full_name"
+                                {...register('full_name')}
+                                className={`w-full px-4 py-3 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${errors.full_name ? 'border-red-500' : 'border-gray-300'
+                                    }`}
                                 placeholder="Enter your full name"
                             />
                             <HelpCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         </div>
+                        {errors.full_name && (
+                            <p className="mt-1 text-sm text-red-600">{errors.full_name.message}</p>
+                        )}
                     </div>
 
                     <div>
@@ -58,27 +117,30 @@ export default function SignUpPage() {
                             <input
                                 type="email"
                                 id="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                {...register('email')}
+                                className={`w-full px-4 py-3 pr-10 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${errors.email ? 'border-red-500' : 'border-gray-300'
+                                    }`}
                                 placeholder="you@company.com"
                             />
                             <HelpCircle className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         </div>
+                        {errors.email && (
+                            <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+                        )}
                     </div>
 
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                            Password
+                            Password*
                         </label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 id="password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
+                                {...register('password')}
+                                className={`w-full pl-12 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700 ${errors.password ? 'border-red-500' : 'border-gray-300'
+                                    }`}
                                 placeholder="Create a password"
                             />
                             <button
@@ -93,20 +155,23 @@ export default function SignUpPage() {
                                 )}
                             </button>
                         </div>
+                        {errors.password && (
+                            <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+                        )}
                     </div>
 
                     <div>
                         <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                            Confirm Password
+                            Confirm Password*
                         </label>
                         <div className="relative">
                             <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-600" />
                             <input
                                 type={showConfirmPassword ? 'text' : 'password'}
                                 id="confirmPassword"
-                                value={confirmPassword}
-                                onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full pl-12 pr-12 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700"
+                                {...register('confirmPassword')}
+                                className={`w-full pl-12 pr-12 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-gray-700 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                                    }`}
                                 placeholder="Confirm your password"
                             />
                             <button
@@ -121,17 +186,21 @@ export default function SignUpPage() {
                                 )}
                             </button>
                         </div>
+                        {errors.confirmPassword && (
+                            <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
+                        )}
                     </div>
 
                     <button
-                        onClick={handleSubmit}
-                        className="w-full bg-[#2B5A8E] cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm"
+                        type="submit"
+                        disabled={registering}
+                        className="w-full bg-[#2B5A8E] justify-center flex cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        Create Account
+                        {registering ? <Loader2 className='animate-spin' /> : 'Create Account'}
                     </button>
-                </div>
+                </form>
 
-                <div className="relative my-6">
+                {/* <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-gray-200"></div>
                     </div>
@@ -151,16 +220,16 @@ export default function SignUpPage() {
                         <path d="M10.2 3.97727C11.6864 3.97727 13.0182 4.48182 14.0636 5.47273L16.9364 2.6C15.1682 0.986364 12.8955 0 10.2 0C6.28636 0 2.89091 2.24091 1.25455 5.50909L4.58636 8.1C5.37273 5.73636 7.59091 3.97727 10.2 3.97727Z" fill="#EA4335" />
                     </svg>
                     <span className="text-gray-700 font-medium">Sign in with Google</span>
-                </button>
+                </button> */}
 
                 <p className="text-center mt-6 text-sm text-gray-600">
-                    Don't have an account?{' '}
-                    <button
-                        onClick={() => console.log('Sign in clicked')}
+                    Already have an account?{' '}
+                    <Link
+                        href="/auth/sign-in"
                         className="text-blue-700 hover:text-blue-800 font-medium transition-colors"
                     >
-                        Sign Up
-                    </button>
+                        Sign In
+                    </Link>
                 </p>
             </div>
         </div>

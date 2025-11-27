@@ -1,7 +1,7 @@
 "use client"
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import WaitlistModal from '../modals/WaitListModal';
 
@@ -9,6 +9,7 @@ const Header: React.FC = () => {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const router = useRouter()
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -52,8 +53,8 @@ const Header: React.FC = () => {
                 </div>
 
                 {/* Desktop CTA Button */}
-                <button onClick={() => setIsModalOpen(true)} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                    Join Waitlist
+                <button onClick={() => router.push("/auth/sign-up")} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                    Sign Up
                 </button>
 
                 {/* Mobile Menu Button */}

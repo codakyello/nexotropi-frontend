@@ -13,7 +13,7 @@ const PageLayout: React.FC<LayoutProps> = ({ children }) => {
 
     return (
         <div className={`bg-cover bg-center bg-no-repeat bg-fixed ${isHomePage ? 'min-h-screen' : 'h-max'}`}
-            style={{ backgroundImage: isHomePage ? "url('/hero.png')" : "url('/others.png')" }}>
+            style={{ backgroundImage: "url('/nexusnew.png')" }}>
             <Navbar />
             <main className="relative">
                 {children}
