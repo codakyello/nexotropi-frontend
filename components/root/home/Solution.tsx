@@ -20,7 +20,7 @@ const Solution = () => {
                     {/* Card 1 */}
                     <div className="relative border border-[#E9EBF8] bg-white border-b-4 border-b-black rounded-lg p-8">
                         <div className="mb-4">
-                            <Image src="/create.svg" alt="high negotiation" width={70} height={70} />
+                            <Image src="/holistic.svg" alt="high negotiation" width={60} height={60} />
                         </div>
 
                         <h3 className="text-[1.3rem] font-bold text-gray-900 mb-4">
@@ -34,7 +34,7 @@ const Solution = () => {
                     <div className="relative border bg-white border-[#E9EBF8] rounded-lg p-8">
 
                         <div className="mb-4">
-                            <Image src="/ai.svg" alt="high negotiation" width={70} height={70} />
+                            <Image src="/autonomous.svg" alt="high negotiation" width={60} height={60} />
                         </div>
 
                         <h3 className="text-[1.3rem] font-bold text-gray-900 mb-4">
@@ -47,7 +47,7 @@ const Solution = () => {
                     </div>
                     <div className="relative border bg-white border-[#E9EBF8] border-b-4 border-b-black rounded-lg p-8">
                         <div className="mb-4">
-                            <Image src="/agree.svg" alt="high negotiation" width={70} height={70} />
+                            <Image src="/verifiable.svg" alt="high negotiation" width={60} height={60} />
                         </div>
 
                         <h3 className="text-[1.3rem] font-bold text-gray-900 mb-4">

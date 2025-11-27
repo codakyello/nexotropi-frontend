@@ -61,7 +61,7 @@ const Pricing = () => {
                     </div>
 
                     {/* Scale Plan - Most Popular */}
-                    <div className="bg-[#1A4A7A] rounded-2xl p-8 relative transform scale-105">
+                    <div className="bg-[#6E56A4] rounded-2xl p-8 relative transform scale-105">
                         {/* Most Popular Badge */}
                         <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                             <span className="bg-white px-6 py-2 rounded-full text-sm font-medium text-[#1A4A7A">

@@ -10,7 +10,7 @@ const AuthHeader: React.FC = () => {
             <nav className="flex max-w-7xl mx-auto">
                 {/* Logo */}
                 <Link href="/" className="hidden sm:flex items-center space-x-2 text-white">
-                    <Image src="/authheader.png" width={188} height={32} alt="logo" />
+                    <Image src="/authlogo.png" width={188} height={32} alt="logo" />
                 </Link>
 
 

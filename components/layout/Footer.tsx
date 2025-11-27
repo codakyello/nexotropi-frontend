@@ -4,12 +4,14 @@ import { Linkedin, Facebook, Instagram, Youtube } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import WaitlistModal from '../modals/WaitListModal';
+import { useRouter } from 'next/navigation';
 
 const Footer = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
+    const router = useRouter()
     return (
         <footer className="text-white bg-cover bg-center bg-no-repeat bg-fixed"
-            style={{ backgroundImage: "url('/footercover.png')" }}
+            style={{ backgroundImage: "url('/nexusnew.png')" }}
         >
             {/* CTA Section */}
             <div className="py-20 px-4">
@@ -22,14 +24,14 @@ const Footer = () => {
                         <br />
                         first product demos.
                     </p>
-                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-indigo-950 px-12 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
-                        Join Waitlist
+                    <button onClick={() => router.push("/auth/sign-up")} className="bg-white cursor-pointer text-indigo-950 px-12 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
+                        Get Started
                     </button>
                 </div>
             </div>
 
             {/* Footer Content */}
-            <div className="border-t border-indigo-800">
+            <div className="border-t border-white">
                 <div className="max-w-7xl mx-auto px-4 py-8">
                     <div className="flex flex-col md:flex-row justify-between items-center space-y-6 md:space-y-0">
 
@@ -41,25 +43,25 @@ const Footer = () => {
                         <div className="flex items-center space-x-4">
                             <a
                                 href="#"
-                                className="w-10 h-10 border border-indigo-700 rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
+                                className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Linkedin className="w-4 h-4" />
                             </a>
                             <a
                                 href="#"
-                                className="w-10 h-10 border border-indigo-700 rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
+                                className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Facebook className="w-4 h-4" />
                             </a>
                             <a
                                 href="#"
-                                className="w-10 h-10 border border-indigo-700 rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
+                                className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Instagram className="w-4 h-4" />
                             </a>
                             <a
                                 href="#"
-                                className="w-10 h-10 border border-indigo-700 rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
+                                className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Youtube className="w-4 h-4" />
                             </a>
@@ -67,20 +69,20 @@ const Footer = () => {
                     </div>
 
                     {/* Bottom Row */}
-                    <div className="flex flex-col md:flex-row justify-between items-center mt-8 pt-8 border-t border-indigo-800 space-y-4 md:space-y-0">
-                        <p className="text-indigo-300 text-sm">
+                    <div className="flex flex-col md:flex-row justify-between items-center mt-8 pt-8 border-t border-white space-y-4 md:space-y-0">
+                        <p className="text-white text-sm">
                             © 2025 Nexotropi. All rights reserved.
                         </p>
                         <div className="flex items-center space-x-8">
                             <a
                                 href="#"
-                                className="text-indigo-300 hover:text-white transition-colors text-sm"
+                                className="text-white hover:text-white transition-colors text-sm"
                             >
                                 Privacy Policy
                             </a>
                             <Link
                                 href="/terms-of-service"
-                                className="text-indigo-300 hover:text-white transition-colors text-sm"
+                                className="text-white hover:text-white transition-colors text-sm"
                             >
                                 Terms & Conditions
                             </Link>
