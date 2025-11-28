@@ -86,8 +86,8 @@ const Header: React.FC = () => {
                         )}
                     </svg>
                 </button>
-                <button className="flex sm:hidden bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                    Join Waitlist
+                <button onClick={() => router.push("/auth/sign-up")} className=" bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                    Sign Up
                 </button>
             </nav>
 
@@ -116,6 +116,14 @@ const Header: React.FC = () => {
                                     />
                                 </svg>
                             </button>
+                            <Link
+                                href="/"
+                                onClick={closeMobileMenu}
+                                className={`block text-white hover:text-gray-200 transition-colors py-3 ${pathname === '/' ? 'font-medium' : ''
+                                    }`}
+                            >
+                                Home
+                            </Link>
 
                             <Link
                                 href="/why-nexusforge"
