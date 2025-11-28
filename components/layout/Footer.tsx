@@ -10,7 +10,7 @@ const Footer = () => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const router = useRouter()
     return (
-        <footer className="text-white bg-cover bg-center bg-no-repeat bg-fixed"
+        <footer className="text-white bg-cover bg-center bg-no-repeat sm:bg-fixed"
             style={{ backgroundImage: "url('/nexusnew.png')" }}
         >
             {/* CTA Section */}
