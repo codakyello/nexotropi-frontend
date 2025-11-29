@@ -86,7 +86,7 @@ const Header: React.FC = () => {
                         )}
                     </svg>
                 </button>
-                <button onClick={() => router.push("/auth/sign-up")} className=" bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                <button onClick={() => router.push("/auth/sign-up")} className="flex sm:hidden bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
                     Sign Up
                 </button>
             </nav>
