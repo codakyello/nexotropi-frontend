@@ -101,7 +101,7 @@ const VerifyEmailContent = () => {
                         Your account has been verified. Redirecting you to sign in...
                     </p>
                     <button
-                        onClick={() => router.push("/auth/sign")}
+                        onClick={() => router.push("/auth/sign-in")}
                         className="w-full bg-[#2B5A8E] cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm"
                     >
                         Continue to Sign In
