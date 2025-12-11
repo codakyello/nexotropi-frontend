@@ -9,7 +9,7 @@ import { useContact } from '@/services/requests/contact';
 
 // Zod validation schema
 const contactSchema = z.object({
-    fullname: z.string().min(2, 'Full name must be at least 2 characters'),
+    full_name: z.string().min(2, 'Full name must be at least 2 characters'),
     email: z.string().email('Please enter a valid email address'),
     organization: z.string().min(2, 'Organization name must be at least 2 characters'),
     message: z.string().min(10, 'Message must be at least 10 characters')
@@ -28,7 +28,7 @@ const ContactSection = () => {
     } = useForm<ContactFormData>({
         resolver: zodResolver(contactSchema),
         defaultValues: {
-            fullname: '',
+            full_name: '',
             email: '',
             organization: '',
             message: ''
@@ -111,13 +111,13 @@ const ContactSection = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    {...register('fullname')}
+                                    {...register('full_name')}
                                     placeholder="Enter Full name"
-                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.fullname ? 'border-red-500' : 'border-gray-200'
+                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.full_name ? 'border-red-500' : 'border-gray-200'
                                         }`}
                                 />
-                                {errors.fullname && (
-                                    <p className="mt-1 text-xs text-red-500">{errors.fullname.message}</p>
+                                {errors.full_name && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.full_name.message}</p>
                                 )}
                             </div>
 
