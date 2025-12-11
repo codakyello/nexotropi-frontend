@@ -4,7 +4,7 @@ import { ApiResponse } from "../interfaces/auth";
 
 // Contact form data interface
 export interface ContactData {
-    fullname: string;
+    full_name: string;
     email: string;
     organization: string;
     message: string;
