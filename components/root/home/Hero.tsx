@@ -20,11 +20,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
     return (
         <PageLayout>
             <section className="relative z-10 px-6 py-20 md:py-32">
-                <div className="max-w-4xl mx-auto text-center text-white">
+                <div className="max-w-6xl mx-auto text-center text-white">
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                         {title}
                     </h1>
-                    <p className="text-xl md:text-2xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
+                    <p className="text-xl md:text-2xl font-normal text-gray-200 mb-8 max-w-3xl mx-auto">
                         {subtitle}
                     </p>
 

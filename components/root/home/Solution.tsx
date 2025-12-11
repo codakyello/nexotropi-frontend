@@ -4,7 +4,7 @@ import React from 'react';
 const Solution = () => {
     return (
         <section className="bg-[#e8edf259] py-16 px-6">
-            <div className="max-w-6xl mx-auto">
+            <div className="container mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">
                     <h1 className="text-[1.7rem] sm:text-[2rem] font-bold text-gray-900 mb-6">

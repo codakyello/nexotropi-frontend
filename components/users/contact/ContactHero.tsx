@@ -13,7 +13,7 @@ const ContactHero: React.FC<HeroSectionProps> = ({
 }) => {
     return (
         <PageLayout>
-            <section className="relative z-10 px-6 py-20">
+            <section className="relative z-10 px-6 pt-32 pb-60">
                 <div className="max-w-4xl mx-auto text-center text-white">
                     <h1 className="text-4xl font-bold mb-6 leading-tight">
                         {title}
