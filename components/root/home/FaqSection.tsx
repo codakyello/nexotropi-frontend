@@ -59,7 +59,7 @@ export default function FaqSection() {
                         and address common concerns from potential clients.
                     </p>
                 </div>
-                <div className="grid container mx-auto lg:grid-cols-2 gap-12 items-start max-w-7xl px-6 lg:px-8">
+                <div className="grid container mx-auto lg:grid-cols-2 gap-12 items-start px-6 lg:px-8">
                     {/* Left Side - 3D Question Mark */}
                     <div className="relative">
                         <Image src="/faq.png" alt="pioneer" width={550} height={700} />

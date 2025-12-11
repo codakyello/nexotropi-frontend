@@ -1,30 +1,54 @@
 "use client"
-import React, { useState } from 'react';
+import React from 'react';
 import { Mail, Phone, MapPin } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { toast } from 'sonner'; // or your preferred toast library
+import { useContact } from '@/services/requests/contact';
+
+// Zod validation schema
+const contactSchema = z.object({
+    fullname: z.string().min(2, 'Full name must be at least 2 characters'),
+    email: z.string().email('Please enter a valid email address'),
+    organization: z.string().min(2, 'Organization name must be at least 2 characters'),
+    message: z.string().min(10, 'Message must be at least 10 characters')
+});
+
+type ContactFormData = z.infer<typeof contactSchema>;
 
 const ContactSection = () => {
-    const [formData, setFormData] = useState({
-        fullName: '',
-        email: '',
-        company: '',
-        message: ''
+    const { mutate: submitContact, isPending } = useContact();
+
+    const {
+        register,
+        handleSubmit,
+        formState: { errors },
+        reset
+    } = useForm<ContactFormData>({
+        resolver: zodResolver(contactSchema),
+        defaultValues: {
+            fullname: '',
+            email: '',
+            organization: '',
+            message: ''
+        }
     });
 
-    const handleInputChange = (e:any) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({
-            ...prev,
-            [name]: value
-        }));
-    };
-
-    const handleSubmit = () => {
-        // Handle form submission logic here
-        console.log('Form submitted:', formData);
+    const onSubmit = (data: ContactFormData) => {
+        submitContact(data, {
+            onSuccess: () => {
+                toast.success('Message sent successfully!');
+                reset();
+            },
+            onError: (error: any) => {
+                toast.error(error.response?.data?.detail || 'Failed to send message. Please try again.');
+            }
+        });
     };
 
     return (
-        <div className="min-h-screen py-8 lg:py-16 px-4 sm:px-6 lg:px-8 lg:mt-[-6rem]">
+        <div className="min-h-screen py-8 lg:py-16 px-4 sm:px-6 lg:px-8 lg:mt-[-14rem]">
             <div className="max-w-6xl mx-auto">
 
                 {/* Main Content Grid - Mobile: Stack vertically with contact first, Desktop: Side by side */}
@@ -79,7 +103,7 @@ const ContactSection = () => {
                     <div className="bg-white col-span-2 rounded-xl lg:rounded-2xl p-6 lg:p-8 shadow-lg lg:shadow-2xl order-1 sm:order-2">
                         <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6 lg:mb-8">Contact form</h2>
 
-                        <div className="space-y-4 lg:space-y-6">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 lg:space-y-6">
                             {/* Full Name */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -87,12 +111,14 @@ const ContactSection = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    name="fullName"
-                                    value={formData.fullName}
-                                    onChange={handleInputChange}
+                                    {...register('fullname')}
                                     placeholder="Enter Full name"
-                                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-200 rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent"
+                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.fullname ? 'border-red-500' : 'border-gray-200'
+                                        }`}
                                 />
+                                {errors.fullname && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.fullname.message}</p>
+                                )}
                             </div>
 
                             {/* Work Email */}
@@ -102,12 +128,14 @@ const ContactSection = () => {
                                 </label>
                                 <input
                                     type="email"
-                                    name="email"
-                                    value={formData.email}
-                                    onChange={handleInputChange}
+                                    {...register('email')}
                                     placeholder="chioma@kargoo.io"
-                                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-200 rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent"
+                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.email ? 'border-red-500' : 'border-gray-200'
+                                        }`}
                                 />
+                                {errors.email && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+                                )}
                             </div>
 
                             {/* Company */}
@@ -117,12 +145,14 @@ const ContactSection = () => {
                                 </label>
                                 <input
                                     type="text"
-                                    name="company"
-                                    value={formData.company}
-                                    onChange={handleInputChange}
+                                    {...register('organization')}
                                     placeholder="Enter company name"
-                                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-200 rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent"
+                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.organization ? 'border-red-500' : 'border-gray-200'
+                                        }`}
                                 />
+                                {errors.organization && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.organization.message}</p>
+                                )}
                             </div>
 
                             {/* Message */}
@@ -131,23 +161,26 @@ const ContactSection = () => {
                                     Message
                                 </label>
                                 <textarea
-                                    name="message"
                                     rows={4}
-                                    value={formData.message}
-                                    onChange={handleInputChange}
+                                    {...register('message')}
                                     placeholder="Enter message"
-                                    className="w-full px-3 lg:px-4 py-2.5 lg:py-3 border border-gray-200 rounded-lg bg-gray-50 resize-none transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent"
+                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 resize-none transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.message ? 'border-red-500' : 'border-gray-200'
+                                        }`}
                                 />
+                                {errors.message && (
+                                    <p className="mt-1 text-xs text-red-500">{errors.message.message}</p>
+                                )}
                             </div>
 
                             {/* Submit Button */}
                             <button
-                                onClick={handleSubmit}
-                                className="w-full bg-[#1A4A7A] text-white py-3 px-6 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-sm lg:text-base"
+                                type="submit"
+                                disabled={isPending}
+                                className="w-full bg-[#1A4A7A] cursor-pointer text-white py-3 px-6 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-sm lg:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
                             >
-                                Send message
+                                {isPending ? 'Sending...' : 'Send message'}
                             </button>
-                        </div>
+                        </form>
                     </div>
 
                 </div>
