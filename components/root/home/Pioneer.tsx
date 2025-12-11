@@ -1,7 +1,10 @@
+"use client"
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import React from 'react';
 
 export default function Pioneer() {
+    const router = useRouter()
     return (
         <section className="min-h-screen bg-gray-50 flex items-center">
             <div className="px-4 sm:px-0">
@@ -19,8 +22,8 @@ export default function Pioneer() {
                             waitlist for exclusive access and help us shape the future of B2B.
                         </p>
 
-                        <button className="bg-[#1A4A7A] cursor-pointer text-white font-semibold px-8 py-4 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl">
-                            Join Waitlist
+                        <button onClick={() => router.push("/auth/sign-up")} className="bg-[#1A4A7A] cursor-pointer text-white font-semibold px-8 py-4 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl">
+                            Get Started
                         </button>
                     </div>
 

@@ -1,7 +1,10 @@
+"use client"
 import React from 'react';
 import { Check } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const Pricing = () => {
+    const router = useRouter()
     return (
         <section className="min-h-screen bg-gray-50 py-20 px-4">
             <div className="max-w-6xl mx-auto">
@@ -55,8 +58,8 @@ const Pricing = () => {
                             </div>
                         </div>
 
-                        <button className="w-full py-3 px-6 border-2 border-[#1A4A7A] text-[#1A4A7A] cursor-pointer rounded-lg font-medium hover:bg-[#1A4A7A] hover:text-white transition-colors">
-                            Request a Custom Quote
+                        <button onClick={() => router.push("/contact")} className="w-full py-3 px-6 border-2 border-[#1A4A7A] text-[#1A4A7A] cursor-pointer rounded-lg font-medium hover:bg-[#1A4A7A] hover:text-white transition-colors">
+                            Contact sales
                         </button>
                     </div>
 
@@ -109,8 +112,8 @@ const Pricing = () => {
                             </div>
                         </div>
 
-                        <button className="w-full py-3 px-6 bg-white text-[#1A4A7A] rounded-lg font-medium hover:bg-gray-50 transition-colors">
-                            Request a Custom Quote
+                        <button onClick={() => router.push("/contact")} className="w-full py-3 px-6 bg-white text-[#1A4A7A] rounded-lg font-medium hover:bg-gray-50 transition-colors">
+                            Contact sales
                         </button>
                     </div>
 
@@ -148,8 +151,8 @@ const Pricing = () => {
                             </div>
                         </div>
 
-                        <button className="w-full py-3 px-6 border-2 border-[#1A4A7A] text-[#1A4A7A] rounded-lg font-medium hover:bg-[#1A4A7A] hover:text-white transition-colors">
-                            Request a Custom Quote
+                        <button onClick={() => router.push("/contact")} className="w-full py-3 cursor-pointer z-50 px-6 border-2 border-[#1A4A7A] text-[#1A4A7A] rounded-lg font-medium hover:bg-[#1A4A7A] hover:text-white transition-colors">
+                            Contact sales
                         </button>
                     </div>
                 </div>
