@@ -28,7 +28,7 @@ const Header: React.FC = () => {
                 </Link>
 
                 {/* Desktop Navigation Links */}
-                <div className="hidden md:flex items-center space-x-8">
+                {/* <div className="hidden md:flex items-center space-x-8">
                     <Link
                         href="/why-nexusforge"
                         className={`text-white hover:text-gray-200 transition-colors ${pathname === '/why-nexusforge' ? 'font-medium' : ''
@@ -50,11 +50,11 @@ const Header: React.FC = () => {
                     >
                         Contact Us
                     </Link>
-                </div>
+                </div> */}
 
                 {/* Desktop CTA Button */}
-                <button onClick={() => router.push("/auth/sign-up")} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                    Sign Up
+                <button onClick={() => setIsModalOpen(true)} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                    Join Waitlist
                 </button>
 
                 {/* Mobile Menu Button */}
@@ -86,8 +86,8 @@ const Header: React.FC = () => {
                         )}
                     </svg>
                 </button>
-                <button onClick={() => router.push("/auth/sign-up")} className="flex sm:hidden bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                    Sign Up
+                <button onClick={() => setIsModalOpen(true)} className="flex sm:hidden bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                    Join Waitlist
                 </button>
             </nav>
 

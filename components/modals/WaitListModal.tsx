@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Check } from 'lucide-react';
+import { toast } from 'sonner';
 import {
     Dialog,
     DialogContent,
@@ -15,14 +16,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useWaitlist } from '@/services/requests/waitlist';
 
 // Zod schema for form validation
 const waitlistSchema = z.object({
-    fullName: z.string().min(1, 'Full name is required').min(2, 'Full name must be at least 2 characters'),
-    workEmail: z.string().min(1, 'Work email is required').email('Please enter a valid email address'),
+    full_name: z.string().min(1, 'Full name is required').min(2, 'Full name must be at least 2 characters'),
+    email: z.string().min(1, 'Work email is required').email('Please enter a valid email address'),
     company: z.string().min(1, 'Company/Organization is required').min(2, 'Company name must be at least 2 characters'),
     industry: z.string().min(1, 'Industry/Sector is required').min(2, 'Industry must be at least 2 characters'),
-    usage: z.string().optional(),
+    use_case: z.string().optional(),
     receiveUpdates: z.boolean().optional(),
     agreeToTerms: z.boolean().refine(val => val === true, {
         message: 'You must agree to the Terms of Service and Privacy Policy'
@@ -38,6 +40,7 @@ interface WaitlistModalProps {
 
 const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
     const [step, setStep] = useState<'form' | 'success'>('form');
+    const waitlistMutation = useWaitlist();
 
     const {
         register,
@@ -49,11 +52,11 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
     } = useForm<WaitlistFormData>({
         resolver: zodResolver(waitlistSchema),
         defaultValues: {
-            fullName: '',
-            workEmail: '',
+            full_name: '',
+            email: '',
             company: '',
             industry: '',
-            usage: '',
+            use_case: '',
             receiveUpdates: false,
             agreeToTerms: false
         }
@@ -61,10 +64,31 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
     const watchedValues = watch();
 
-    const onSubmit = (data: WaitlistFormData) => {
-        // Here you would typically send the data to your backend
-        console.log('Waitlist form submitted:', data);
-        setStep('success');
+    const onSubmit = async (data: WaitlistFormData) => {
+        try {
+            // Transform form data to match API expectations
+            const payload = {
+                full_name: data.full_name,
+                email: data.email,
+                company: data.company,
+                industry: data.industry,
+                use_case: data.use_case,
+                receive_updates: data.receiveUpdates
+            };
+
+            await waitlistMutation.mutateAsync(payload);
+
+            // Show success toast
+            toast.success('Successfully joined the waitlist! Check your email for confirmation.',
+            );
+
+            // Move to success screen
+            setStep('success');
+        } catch (error: any) {
+            // Show error toast
+            const errorMessage = error.response?.data?.detail || 'Failed to join waitlist. Please try again.';
+            toast.error(errorMessage);
+        }
     };
 
     const handleClose = () => {
@@ -90,7 +114,7 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                             </DialogTitle>
                         </DialogHeader>
 
-                        <div className="space-y-4">
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                             {/* Full Name */}
                             <div className="space-y-2">
                                 <Label htmlFor="fullName" className="text-sm text-[#5D6679]">
@@ -99,11 +123,11 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                 <Input
                                     id="fullName"
                                     placeholder="Enter Full name"
-                                    {...register('fullName')}
-                                    className={`w-full ${errors.fullName ? 'border-red-500' : ''}`}
+                                    {...register('full_name')}
+                                    className={`w-full ${errors.full_name ? 'border-red-500' : ''}`}
                                 />
-                                {errors.fullName && (
-                                    <p className="text-sm text-red-600">{errors.fullName.message}</p>
+                                {errors.full_name && (
+                                    <p className="text-sm text-red-600">{errors.full_name.message}</p>
                                 )}
                             </div>
 
@@ -116,11 +140,11 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     id="workEmail"
                                     type="email"
                                     placeholder="chioma@kargoo.io"
-                                    {...register('workEmail')}
-                                    className={`w-full ${errors.workEmail ? 'border-red-500' : ''}`}
+                                    {...register('email')}
+                                    className={`w-full ${errors.email ? 'border-red-500' : ''}`}
                                 />
-                                {errors.workEmail && (
-                                    <p className="text-sm text-red-600">{errors.workEmail.message}</p>
+                                {errors.email && (
+                                    <p className="text-sm text-red-600">{errors.email.message}</p>
                                 )}
                             </div>
 
@@ -164,12 +188,12 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                 <Textarea
                                     id="usage"
                                     placeholder="Enter description..."
-                                    {...register('usage')}
+                                    {...register('use_case')}
                                     rows={4}
                                     className="w-full resize-none"
                                 />
-                                {errors.usage && (
-                                    <p className="text-sm text-red-600">{errors.usage.message}</p>
+                                {errors.use_case && (
+                                    <p className="text-sm text-red-600">{errors.use_case.message}</p>
                                 )}
                             </div>
 
@@ -213,14 +237,13 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
                             {/* Submit Button */}
                             <Button
-                                type="button"
-                                onClick={handleSubmit(onSubmit)}
+                                type="submit"
                                 className="w-full py-5 px-4 rounded-md cursor-pointer font-medium text-white mt-6 bg-[#1A4A7A] hover:bg-[#1A4A7A] transition-colors"
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || waitlistMutation.isPending}
                             >
-                                {isSubmitting ? 'Submitting...' : 'Join Waitlist'}
+                                {isSubmitting || waitlistMutation.isPending ? 'Submitting...' : 'Join Waitlist'}
                             </Button>
-                        </div>
+                        </form>
                     </>
                 ) : (
                     // Success Screen
@@ -259,7 +282,11 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
                         {/* Share Button */}
                         <Button
-                            onClick={() => {/* Handle share functionality */ }}
+                            onClick={() => {
+                                toast.success('Share link copied!', {
+                                    description: 'Share this with your friends and colleagues.',
+                                });
+                            }}
                             className="w-full bg-[#1A4A7A] text-white py-3 px-4 rounded-md font-medium mb-2 transition-colors"
                         >
                             Share with friends

@@ -17,10 +17,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 }) => {
     const [isModalOpen, setIsModalOpen] = useState(false)
     const router = useRouter()
+    const scrollToContact = () => {
+        const contactSection = document.getElementById('contact');
+        if (contactSection) {
+            contactSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
     return (
         <PageLayout>
             <section className="relative z-10 px-6 py-20 md:py-32">
-                <div className="max-w-6xl mx-auto text-center text-white">
+                <div className="max-w-6xl mx-auto text-center text-white mt-12">
                     <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                         {title}
                     </h1>
@@ -30,11 +37,11 @@ const HeroSection: React.FC<HeroSectionProps> = ({
 
                     {showButtons && (
                         <div className="flex flex-row gap-4 justify-center items-center">
-                            <button onClick={() => router.push("/auth/sign-up")} className="bg-white cursor-pointer text-gray-900 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                                Get Started
+                            <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-gray-900 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                                Join Waitlist
                             </button>
-                            <button className="border border-white text-white px-8 py-3 rounded-lg font-medium hover:bg-white hover:text-purple-900 transition-colors">
-                                Learn More
+                            <button onClick={scrollToContact} className="border cursor-pointer border-white text-white px-8 py-3 rounded-lg font-medium hover:bg-white hover:text-purple-900 transition-colors">
+                                Contact Sales
                             </button>
                         </div>
                     )}

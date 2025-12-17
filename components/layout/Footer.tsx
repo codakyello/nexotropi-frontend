@@ -24,8 +24,8 @@ const Footer = () => {
                         <br />
                         first product demos.
                     </p>
-                    <button onClick={() => router.push("/auth/sign-up")} className="bg-white cursor-pointer text-indigo-950 px-12 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
-                        Get Started
+                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-indigo-950 px-12 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
+                        Join Waitlist
                     </button>
                 </div>
             </div>

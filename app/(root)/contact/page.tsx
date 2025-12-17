@@ -1,5 +1,5 @@
-import ContactHero from '@/components/users/contact/ContactHero'
-import ContactSection from '@/components/users/contact/ContactSection'
+import ContactHero from '@/components/root/contact/ContactHero'
+import ContactSection from '@/components/root/contact/ContactSection'
 import React from 'react'
 
 const page = () => {
