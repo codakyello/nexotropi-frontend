@@ -25,7 +25,7 @@ const SilentCrisisUpdated = () => {
     ];
 
     return (
-        <section className="bg-white py-20 px-6">
+        <section id="crisis" className="bg-white py-20 px-6">
             <div className="container mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">

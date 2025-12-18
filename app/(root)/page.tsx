@@ -16,11 +16,11 @@ const page = () => {
       <SilentCrisisUpdated />
       <SolutionUpdated />
       <CoreFeatures />
-      <PricingUpdated />
+      {/* <PricingUpdated /> */}
       {/* <Testimonials />
       <Pioneer /> */}
-      <FaqSection />
-      <ContactSection />
+      {/* <FaqSection /> */}
+      {/* <ContactSection /> */}
     </>
   )
 }

@@ -9,7 +9,27 @@ const Header: React.FC = () => {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false)
-    const router = useRouter()
+
+    const scrollToSolution = () => {
+        const solutionSection = document.getElementById('solution');
+        if (solutionSection) {
+            solutionSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    const scrollToCrisis = () => {
+        const crisisSection = document.getElementById('crisis');
+        if (crisisSection) {
+            crisisSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    const scrollToFeatures = () => {
+        const featureSection = document.getElementById('features');
+        if (featureSection) {
+            featureSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -28,8 +48,26 @@ const Header: React.FC = () => {
                 </Link>
 
                 {/* Desktop Navigation Links */}
-                {/* <div className="hidden md:flex items-center space-x-8">
-                    <Link
+                <div className="hidden md:flex items-center space-x-8">
+                    <div
+                        onClick={scrollToCrisis}
+                        className={`text-white cursor-pointer font-medium hover:text-gray-200 transition-colors`}
+                    >
+                        Silent Crisis
+                    </div>
+                    <div
+                        onClick={scrollToSolution}
+                        className={`text-white cursor-pointer font-medium hover:text-gray-200 transition-colors`}
+                    >
+                        Solution
+                    </div>
+                    <div
+                        onClick={scrollToFeatures}
+                        className={`text-white cursor-pointer font-medium hover:text-gray-200 transition-colors`}
+                    >
+                        Features
+                    </div>
+                    {/* <Link
                         href="/why-nexusforge"
                         className={`text-white hover:text-gray-200 transition-colors ${pathname === '/why-nexusforge' ? 'font-medium' : ''
                             }`}
@@ -49,8 +87,8 @@ const Header: React.FC = () => {
                             }`}
                     >
                         Contact Us
-                    </Link>
-                </div> */}
+                    </Link> */}
+                </div>
 
                 {/* Desktop CTA Button */}
                 <button onClick={() => setIsModalOpen(true)} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
