@@ -26,7 +26,7 @@ const SolutionUpdated = () => {
     ];
 
     return (
-        <section className="bg-gray-50 py-20 px-6">
+        <section id="solution" className="bg-gray-50 py-20 px-6">
             <div className="container mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">

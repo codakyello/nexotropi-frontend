@@ -41,7 +41,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({
                                 Join Waitlist
                             </button>
                             <button onClick={scrollToContact} className="border cursor-pointer border-white text-white px-8 py-3 rounded-lg font-medium hover:bg-white hover:text-purple-900 transition-colors">
-                                Contact Sales
+                                Learn More
                             </button>
                         </div>
                     )}
