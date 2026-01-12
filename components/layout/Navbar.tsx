@@ -100,7 +100,7 @@ const Header: React.FC = () => {
 
                     {/* CTA Button */}
                     <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors">
-                        Join Waitlist
+                        Waitlist
                     </button>
                 </div>
 
