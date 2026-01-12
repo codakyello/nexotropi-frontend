@@ -1,14 +1,22 @@
 "use client"
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Image from 'next/image';
 import WaitlistModal from '../modals/WaitListModal';
+import { useThemeStore } from '@/store/themeStore';
 
 const Header: React.FC = () => {
     const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const { isDarkMode, toggleTheme, initializeTheme } = useThemeStore();
+
+    // Initialize theme on mount
+    useEffect(() => {
+        initializeTheme();
+    }, [initializeTheme]);
 
     const scrollToSolution = () => {
         const solutionSection = document.getElementById('solution');
@@ -41,15 +49,15 @@ const Header: React.FC = () => {
 
     return (
         <header className="relative z-50 px-6 py-4">
-            <nav className="flex items-center justify-between max-w-7xl mx-auto">
+            <nav className={`flex items-center ${!isDarkMode ? "bg-[#181818] p-6 rounded-md" : "p-0 bg-none rounded-none"} justify-between max-w-7xl mx-auto`}>
                 {/* Logo */}
-                <Link href="/" className="hidden sm:flex items-center space-x-2 text-white">
+                <Link href="/" className="flex items-center space-x-2 text-white">
                     <Image src="/nexotropoli.png" width={188} height={32} alt="logo" />
                 </Link>
 
                 {/* Desktop Navigation Links */}
                 <div className="hidden md:flex items-center space-x-8">
-                    <div
+                    {/* <div
                         onClick={scrollToCrisis}
                         className={`text-white cursor-pointer font-medium hover:text-gray-200 transition-colors`}
                     >
@@ -66,37 +74,38 @@ const Header: React.FC = () => {
                         className={`text-white cursor-pointer font-medium hover:text-gray-200 transition-colors`}
                     >
                         Features
-                    </div>
-                    {/* <Link
-                        href="/why-nexusforge"
-                        className={`text-white hover:text-gray-200 transition-colors ${pathname === '/why-nexusforge' ? 'font-medium' : ''
-                            }`}
-                    >
-                        Why Nexotropi
-                    </Link>
-                    <Link
-                        href="/pricing"
-                        className={`text-white hover:text-gray-200 transition-colors ${pathname === '/pricing' ? 'font-medium' : ''
-                            }`}
-                    >
-                        Pricing
-                    </Link>
-                    <Link
-                        href="/contact"
-                        className={`text-white hover:text-gray-200 transition-colors ${pathname === '/contact' ? 'font-medium' : ''
-                            }`}
-                    >
-                        Contact Us
-                    </Link> */}
+                    </div> */}
                 </div>
 
-                {/* Desktop CTA Button */}
-                <button onClick={() => setIsModalOpen(true)} className="hidden md:block bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                    Join Waitlist
-                </button>
+                {/* Desktop Right Side - Theme Toggle & CTA Button */}
+                <div className="hidden md:flex items-center space-x-4">
+                    {/* Theme Toggle Button */}
+                    <button
+                        onClick={toggleTheme}
+                        className="text-white cursor-pointer hover:text-gray-200 transition-colors p-2 rounded-lg hover:bg-white/10"
+                        aria-label="Toggle theme"
+                    >
+                        {isDarkMode ? (
+                            // Sun icon for light mode
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        ) : (
+                            // Moon icon for dark mode
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        )}
+                    </button>
+
+                    {/* CTA Button */}
+                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors">
+                        Join Waitlist
+                    </button>
+                </div>
 
                 {/* Mobile Menu Button */}
-                <button
+                {/* <button
                     onClick={toggleMobileMenu}
                     className="md:hidden text-white focus:outline-none focus:text-gray-200"
                     aria-label="Toggle mobile menu"
@@ -123,10 +132,31 @@ const Header: React.FC = () => {
                             />
                         )}
                     </svg>
-                </button>
-                <button onClick={() => setIsModalOpen(true)} className="flex sm:hidden bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                    Join Waitlist
-                </button>
+                </button> */}
+
+                {/* Mobile Theme Toggle & CTA */}
+                <div className="flex sm:hidden items-center space-x-3">
+                    {/* Theme Toggle Button */}
+                    <button
+                        onClick={toggleTheme}
+                        className="text-white hover:text-gray-200 transition-colors p-2"
+                        aria-label="Toggle theme"
+                    >
+                        {isDarkMode ? (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                        ) : (
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                            </svg>
+                        )}
+                    </button>
+
+                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-2 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                        Join Waitlist
+                    </button>
+                </div>
             </nav>
 
             {/* Mobile Menu Sidebar */}
@@ -154,39 +184,6 @@ const Header: React.FC = () => {
                                     />
                                 </svg>
                             </button>
-                            <Link
-                                href="/"
-                                onClick={closeMobileMenu}
-                                className={`block text-white hover:text-gray-200 transition-colors py-3 ${pathname === '/' ? 'font-medium' : ''
-                                    }`}
-                            >
-                                Home
-                            </Link>
-
-                            <Link
-                                href="/why-nexusforge"
-                                onClick={closeMobileMenu}
-                                className={`block text-white hover:text-gray-200 transition-colors py-3 ${pathname === '/why-nexusforge' ? 'font-medium' : ''
-                                    }`}
-                            >
-                                Why NexusForge
-                            </Link>
-                            <Link
-                                href="/pricing"
-                                onClick={closeMobileMenu}
-                                className={`block text-white hover:text-gray-200 transition-colors py-3 ${pathname === '/pricing' ? 'font-medium' : ''
-                                    }`}
-                            >
-                                Pricing
-                            </Link>
-                            <Link
-                                href="/contact"
-                                onClick={closeMobileMenu}
-                                className={`block text-white hover:text-gray-200 transition-colors py-3 ${pathname === '/contact' ? 'font-medium' : ''
-                                    }`}
-                            >
-                                Contact Us
-                            </Link>
                         </div>
                     </div>
                 </div>

@@ -83,7 +83,6 @@ const AdminSidebar = () => {
                 />
             );
         } else {
-            // It's a React component (like Lucide icons)
             const IconComponent = icon;
             return (
                 <IconComponent
