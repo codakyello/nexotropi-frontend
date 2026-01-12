@@ -13,8 +13,8 @@ const page = () => {
   return (
     <>
       <HeroSection title="The Future of B2B Commerce is Autonomous." subtitle='Nexotropi enables autonomous negotiation and strategic  simulation by creating living digital ecosystems of your business.' />
-      <SilentCrisisUpdated />
-      <SolutionUpdated />
+      {/* <SilentCrisisUpdated />
+      <SolutionUpdated /> */}
       <CoreFeatures />
       {/* <PricingUpdated /> */}
       {/* <Testimonials />

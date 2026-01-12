@@ -1,9 +1,10 @@
 "use client"
 import React, { useState } from 'react';
-import { Linkedin, Facebook, Instagram, Youtube } from 'lucide-react';
+import { Linkedin, Facebook, Instagram, Youtube, X } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import WaitlistModal from '../modals/WaitListModal';
+import { FaXTwitter } from "react-icons/fa6"
 import { useRouter } from 'next/navigation';
 
 const Footer = () => {
@@ -11,7 +12,7 @@ const Footer = () => {
     const router = useRouter()
     return (
         <footer className="text-white bg-cover bg-center bg-no-repeat sm:bg-fixed"
-            style={{ backgroundImage: "url('/nexusnew.png')" }}
+            style={{ backgroundImage: "url('/footernew.png')" }}
         >
             {/* CTA Section */}
             <div className="py-20 px-4">
@@ -24,7 +25,7 @@ const Footer = () => {
                         <br />
                         first product demos.
                     </p>
-                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-indigo-950 px-12 py-4 rounded-lg text-base font-semibold hover:bg-gray-50 transition-colors">
+                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-indigo-950 px-12 py-3 rounded-full text-base font-semibold hover:bg-gray-50 transition-colors">
                         Join Waitlist
                     </button>
                 </div>
@@ -42,19 +43,20 @@ const Footer = () => {
                         {/* Social Media Icons */}
                         <div className="flex items-center space-x-4">
                             <a
-                                href="#"
+                                href="https://www.linkedin.com/company/nexotropi/"
                                 className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Linkedin className="w-4 h-4" />
                             </a>
                             <a
-                                href="#"
+                                href="https://x.com/nexotropi?s=09"
                                 className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
-                                <Facebook className="w-4 h-4" />
+                                <FaXTwitter className="w-4 h-4" />
                             </a>
                             <a
-                                href="#"
+                                href="https://www.instagram.com/nexotropi_ai?igsh=MWhja2EyeXlhM3k5Yw==
+"
                                 className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Instagram className="w-4 h-4" />

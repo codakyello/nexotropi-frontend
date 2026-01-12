@@ -1,7 +1,11 @@
+"use client"
 import React from 'react';
 import { Database, Cpu, BarChart3, Users, Brain, Zap, Eye, Settings, RefreshCw } from 'lucide-react';
+import { useThemeStore } from '@/store/themeStore';
 
 const CoreFeatures = () => {
+    const { isDarkMode } = useThemeStore();
+
     const features = [
         {
             category: "Ecosystem Generation & Digital Replication",
@@ -66,14 +70,20 @@ const CoreFeatures = () => {
     ];
 
     return (
-        <section id="features" className="min-h-screen bg-[#6E56A4] py-20 px-4">
+        <section
+            id="features"
+            className={`min-h-screen py-20 px-4 transition-colors ${isDarkMode ? 'bg-[#6E56A4]' : 'bg-white'
+                }`}
+        >
             <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="text-center mb-16">
-                    <h1 className="text-[1.7rem] sm:text-[2rem] font-bold text-white mb-6">
+                    <h1 className={`text-[1.7rem] sm:text-[2rem] font-bold mb-6 transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         Nexotropi: Core Features
                     </h1>
-                    <p className="text-base text-slate-300 max-w-4xl mx-auto leading-relaxed">
+                    <p className={`text-base max-w-4xl mx-auto leading-relaxed transition-colors ${isDarkMode ? 'text-slate-300' : 'text-gray-600'
+                        }`}>
                         Nexotropi&apos;s platform is built to deliver a comprehensive, intelligent, and autonomous solution for inter-<br></br>enterprise B2B interactions.
                     </p>
                 </div>
@@ -83,10 +93,14 @@ const CoreFeatures = () => {
                     {features.map((category, categoryIndex) => (
                         <div
                             key={categoryIndex}
-                            className="bg-[#E3E3E31A] backdrop-blur-sm rounded-2xl p-8 transition-all duration-300"
+                            className={`backdrop-blur-sm rounded-2xl p-8 transition-all duration-300 ${isDarkMode
+                                ? 'bg-[#E3E3E31A] hover:bg-[#E3E3E32A]'
+                                : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
+                                }`}
                         >
                             {/* Category Title */}
-                            <h2 className="text-xl font-semibold text-white mb-8 leading-tight">
+                            <h2 className={`text-xl font-semibold mb-8 leading-tight transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 {category.category}
                             </h2>
 
@@ -95,14 +109,23 @@ const CoreFeatures = () => {
                                 {category.items.map((item, itemIndex) => (
                                     <div key={itemIndex} className="group">
                                         <div className="flex items-start space-x-4">
-                                            <div className="flex-shrink-0 p-2 bg-emerald-400/10 rounded-lg group-hover:bg-emerald-400/20 transition-colors duration-200">
-                                                {item.icon}
+                                            <div className={`flex-shrink-0 p-2 rounded-lg transition-colors duration-200 ${isDarkMode
+                                                ? 'bg-emerald-400/10 group-hover:bg-emerald-400/20'
+                                                : 'bg-emerald-50 group-hover:bg-emerald-100'
+                                                }`}>
+                                                {React.cloneElement(item.icon, {
+                                                    className: `w-5 h-5 ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`
+                                                })}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="text-white font-medium mb-2 group-hover:text-emerald-300 transition-colors duration-200">
+                                                <h3 className={`font-medium mb-2 transition-colors duration-200 ${isDarkMode
+                                                    ? 'text-white group-hover:text-emerald-300'
+                                                    : 'text-gray-900 group-hover:text-emerald-600'
+                                                    }`}>
                                                     {item.title}
                                                 </h3>
-                                                <p className="text-slate-400 text-sm leading-relaxed">
+                                                <p className={`text-sm leading-relaxed transition-colors ${isDarkMode ? 'text-slate-400' : 'text-gray-600'
+                                                    }`}>
                                                     {item.description}
                                                 </p>
                                             </div>
@@ -116,10 +139,13 @@ const CoreFeatures = () => {
 
                 {/* Optional CTA or Additional Content */}
                 <div className="text-center mt-16">
-                    <div className="inline-flex items-center space-x-2 text-emerald-400">
-                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                    <div className={`inline-flex items-center space-x-2 transition-colors ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'
+                        }`}>
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-600'
+                            }`}></div>
                         <span className="text-sm font-medium">Powered by Advanced AI Technology</span>
-                        <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${isDarkMode ? 'bg-emerald-400' : 'bg-emerald-600'
+                            }`}></div>
                     </div>
                 </div>
             </div>
