@@ -49,7 +49,7 @@ const Header: React.FC = () => {
 
     return (
         <header className="relative z-50 px-6 py-4">
-            <nav className={`flex items-center ${!isDarkMode ? "bg-[#181818] p-6 rounded-md" : "p-0 bg-none rounded-none"} justify-between max-w-7xl mx-auto`}>
+            <nav className={`flex items-center ${!isDarkMode ? "bg-[#181818] p-4 sm:p-6 rounded-md" : "p-0 bg-none rounded-none"} justify-between max-w-7xl mx-auto`}>
                 {/* Logo */}
                 <Link href="/" className="flex items-center space-x-2 text-white">
                     <Image src="/nexotropoli.png" width={188} height={32} alt="logo" />
@@ -135,7 +135,7 @@ const Header: React.FC = () => {
                 </button> */}
 
                 {/* Mobile Theme Toggle & CTA */}
-                <div className="flex sm:hidden items-center space-x-3">
+                <div className="flex sm:hidden items-center space-x-2">
                     {/* Theme Toggle Button */}
                     <button
                         onClick={toggleTheme}
@@ -153,7 +153,7 @@ const Header: React.FC = () => {
                         )}
                     </button>
 
-                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-2 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-2 text-nowrap py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
                         Join Waitlist
                     </button>
                 </div>
