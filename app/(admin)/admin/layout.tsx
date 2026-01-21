@@ -7,8 +7,8 @@ export default function AdminLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <body>
+        <>
             <AdminDashboardLayout>{children}</AdminDashboardLayout>
-        </body>
+        </>
     );
 }

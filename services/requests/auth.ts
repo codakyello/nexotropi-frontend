@@ -12,8 +12,8 @@ export const useRegister = () => {
             const response = await api.post<ApiResponse>('/auth/user/register', userData);
 
             // Store token in cookie if it exists in response
-            if (response.data.data?.token) {
-                Cookies.set('auth_token', response.data.data.token, {
+            if (response.data.data?.access_token) {
+                Cookies.set('access_token', response.data.data.access_token, {
                     expires: 7, // 7 days
                     secure: true,
                     sameSite: 'strict'
@@ -38,10 +38,10 @@ export const useLogin = () => {
     return useMutation({
         mutationFn: async (userData: LoginData): Promise<ApiResponse> => {
             const response = await api.post<ApiResponse>('/auth/user/login', userData);
-
+            console.log("response--->", response.data)
             // Store token in cookie if it exists in response
-            if (response.data.data?.token) {
-                Cookies.set('auth_token', response.data.data.token, {
+            if (response.data.data?.access_token) {
+                Cookies.set('access_token', response.data.data.access_token, {
                     expires: 7, // 7 days
                     secure: true,
                     sameSite: 'strict'
@@ -155,14 +155,16 @@ export const useResendCode = () => {
 // Admin Login Mutation
 export const useAdminLogin = () => {
     const router = useRouter();
-    
+
     return useMutation({
         mutationFn: async (userData: LoginData): Promise<ApiResponse> => {
             const response = await api.post<ApiResponse>('/auth/admin/login', userData);
 
+            console.log("res-->", response.data)
+
             // Store token in cookie if it exists in response
-            if (response.data.data?.token) {
-                Cookies.set('admin_auth_token', response.data.data.token, {
+            if (response.data.data?.access_token) {
+                Cookies.set('access_token', response.data.data.access_token, {
                     expires: 7, // 7 days
                     secure: true,
                     sameSite: 'strict'
@@ -176,7 +178,7 @@ export const useAdminLogin = () => {
             router.push("/admin/dashboard");
         },
         onError: (error: any) => {
-            console.error('Admin login error:', error.response?.data?.detail || error.message);
+            console.error('Admin login error:', error?.response?.data?.detail || error.message);
         },
     });
 };
@@ -187,13 +189,13 @@ export const useGetAdminInfo = () => {
         queryKey: ['adminInfo'],
         queryFn: async (): Promise<ApiResponse> => {
             const token = Cookies.get('admin_auth_token');
-            
+
             const response = await api.get<ApiResponse>('/auth/admin/me', {
                 headers: {
                     Authorization: `Bearer ${token}`
                 }
             });
-            
+
             return response.data;
         },
         enabled: !!Cookies.get('admin_auth_token'), // Only run if token exists

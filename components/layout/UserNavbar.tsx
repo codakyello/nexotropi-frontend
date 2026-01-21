@@ -30,7 +30,7 @@ const AdminNavbar = () => {
             // Clear all auth-related cookies
             Cookies.remove('access_token');
             Cookies.remove('refresh_token');
-            Cookies.remove('admin_auth_token'); // if you use this separately
+            Cookies.remove('access_token'); // if you use this separately
 
             toast.success('Logged out successfully');
 

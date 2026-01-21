@@ -7,26 +7,34 @@ interface PrivateProps {
     children: React.ReactNode;
 }
 
-const AdminPrivateRoute: React.FC<PrivateProps> = ({
-    children,
-}) => {
+const AdminPrivateRoute: React.FC<PrivateProps> = ({ children }) => {
     const router = useRouter();
     const pathname = usePathname();
-    const [isChecking, setIsChecking] = useState(true);
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
     useEffect(() => {
-        const token = Cookies.get("access_token") ?? null;
-        setIsAuthenticated(Boolean(token));
-        setIsChecking(false);
+        const token = Cookies.get("access_token");
+        
         if (!token) {
-            router.push('/auth');
+            setIsAuthenticated(false);
+            router.push('/auth/admin/sign-in');
+        } else {
+            setIsAuthenticated(true);
         }
     }, [router, pathname]);
 
-    if (isChecking) return null;
+    // Still checking authentication
+    if (isAuthenticated === null) {
+        return null; // Or return a loading spinner
+    }
 
-    return isAuthenticated ? <>{children}</> : null;
+    // Not authenticated, don't render children while redirecting
+    if (!isAuthenticated) {
+        return null;
+    }
+
+    // Authenticated, render children
+    return <>{children}</>;
 };
 
 export default AdminPrivateRoute;
