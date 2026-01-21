@@ -7,7 +7,8 @@ import {
     Share2,
     MessageSquare,
     TrendingUp,
-    FileText
+    FileText,
+    Mail
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -35,6 +36,7 @@ const AdminSidebar = () => {
             section: 'main',
             items: [
                 { icon: '/dashboard.svg', label: 'Dashboard', href: '/admin/dashboard' },
+                { icon: Mail, label: 'Waitlist', href: '/admin/waitlist' },
                 { icon: '/menu.svg', label: 'Content Management', href: '/admin/content-management' },
                 { icon: '/persons.svg', label: 'Users', href: '/admin/users' },
                 { icon: '/roles.svg', label: 'Roles & Permisssions', href: '/admin/permission' },
@@ -44,7 +46,7 @@ const AdminSidebar = () => {
         {
             section: 'bottom',
             items: [
-                { icon: Settings, label: 'Settings', href: '/user/settings' },
+                { icon: Settings, label: 'Settings', href: '/admin/settings' },
             ]
         }
     ];
