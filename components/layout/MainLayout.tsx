@@ -18,7 +18,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     return (
         <QueryClientProvider client={queryClient}>
-            <main className="flex-1 overflow-y-auto">{children}</main>
+            {children}
             <Toaster />
         </QueryClientProvider>
     );
