@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import Cookies from 'js-cookie';
 import { api } from "../axiosInstance";
 import { ApiResponse, ForgotPasswordData, LoginData, RegisterData, ResendCodeData, ResetPasswordData, VerifyEmailData, VerifyTokenData } from "../interfaces/auth";
@@ -149,5 +149,55 @@ export const useResendCode = () => {
         onError: (error: any) => {
             console.error('Resend code error:', error.response?.data?.detail || error.message);
         },
+    });
+};
+
+// Admin Login Mutation
+export const useAdminLogin = () => {
+    const router = useRouter();
+    
+    return useMutation({
+        mutationFn: async (userData: LoginData): Promise<ApiResponse> => {
+            const response = await api.post<ApiResponse>('/auth/admin/login', userData);
+
+            // Store token in cookie if it exists in response
+            if (response.data.data?.token) {
+                Cookies.set('admin_auth_token', response.data.data.token, {
+                    expires: 7, // 7 days
+                    secure: true,
+                    sameSite: 'strict'
+                });
+            }
+
+            return response.data;
+        },
+        onSuccess: (data) => {
+            console.log('Admin login successful:', data.message);
+            router.push("/admin/dashboard");
+        },
+        onError: (error: any) => {
+            console.error('Admin login error:', error.response?.data?.detail || error.message);
+        },
+    });
+};
+
+// Get Current Admin Info Query
+export const useGetAdminInfo = () => {
+    return useQuery({
+        queryKey: ['adminInfo'],
+        queryFn: async (): Promise<ApiResponse> => {
+            const token = Cookies.get('admin_auth_token');
+            
+            const response = await api.get<ApiResponse>('/auth/admin/me', {
+                headers: {
+                    Authorization: `Bearer ${token}`
+                }
+            });
+            
+            return response.data;
+        },
+        enabled: !!Cookies.get('admin_auth_token'), // Only run if token exists
+        retry: false,
+        staleTime: 5 * 60 * 1000, // 5 minutes
     });
 };

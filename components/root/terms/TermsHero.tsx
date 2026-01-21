@@ -1,3 +1,5 @@
+"use client"
+import { useThemeStore } from "@/store/themeStore";
 import PageLayout from "../../layout/PageLayout";
 
 interface HeroSectionProps {
@@ -11,24 +13,37 @@ const TermsHero: React.FC<HeroSectionProps> = ({
     subtitle,
     showButtons = false
 }) => {
+    const { isDarkMode } = useThemeStore();
+
     return (
         <PageLayout>
             <section className="relative z-10 px-6 py-20 md:py-32">
-                <div className="max-w-4xl mx-auto text-center text-white">
+                <div className={`max-w-4xl mx-auto text-center transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}>
                     <h1 className="text-4xl font-bold mb-6 leading-tight">
                         {title}
                     </h1>
-                    <p className="text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
+                    <p className={`text-xl mb-8 leading-relaxed max-w-3xl mx-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                        }`}>
                         {subtitle}
                     </p>
-                    <p className="text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">Last Updated: July 25, 2025</p>
+                    <p className={`text-xl mb-8 leading-relaxed max-w-3xl mx-auto ${isDarkMode ? 'text-gray-200' : 'text-gray-700'
+                        }`}>
+                        Last Updated: July 25, 2025
+                    </p>
 
                     {showButtons && (
                         <div className="flex flex-row gap-4 justify-center items-center">
-                            <button className="bg-white text-gray-900 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
+                            <button className={`px-8 py-3 rounded-lg font-medium transition-colors ${isDarkMode
+                                ? 'bg-white text-gray-900 hover:bg-gray-100'
+                                : 'bg-gray-900 text-white hover:bg-gray-800'
+                                }`}>
                                 Join Waitlist
                             </button>
-                            <button className="border border-white text-white px-8 py-3 rounded-lg font-medium hover:bg-white hover:text-purple-900 transition-colors">
+                            <button className={`border px-8 py-3 rounded-lg font-medium transition-colors ${isDarkMode
+                                ? 'border-white text-white hover:bg-white hover:text-purple-900'
+                                : 'border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white'
+                                }`}>
                                 Learn More
                             </button>
                         </div>

@@ -61,19 +61,19 @@ const Footer = () => {
                             >
                                 <Instagram className="w-4 h-4" />
                             </a>
-                            <a
+                            {/* <a
                                 href="#"
                                 className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Youtube className="w-4 h-4" />
-                            </a>
+                            </a> */}
                         </div>
                     </div>
 
                     {/* Bottom Row */}
                     <div className="flex flex-col md:flex-row justify-between items-center mt-8 pt-8 border-t border-white space-y-4 md:space-y-0">
                         <p className="text-white text-sm">
-                            © 2025 Nexotropi. All rights reserved.
+                            © {new Date().getFullYear()} Nexotropi. All rights reserved.
                         </p>
                         <div className="flex items-center space-x-8">
                             <a

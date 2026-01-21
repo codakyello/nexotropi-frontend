@@ -52,7 +52,13 @@ const Header: React.FC = () => {
             <nav className={`flex items-center ${!isDarkMode ? "bg-[#181818] p-4 sm:p-6 rounded-md" : "p-0 bg-none rounded-none"} justify-between max-w-7xl mx-auto`}>
                 {/* Logo */}
                 <Link href="/" className="flex items-center space-x-2 text-white">
-                    <Image src="/nexotropoli.png" width={188} height={32} alt="logo" />
+                    <Image
+                        src="/nexotropoli.png"
+                        width={188}
+                        height={32}
+                        alt="logo"
+                        className="w-32 h-auto sm:w-[188px]"
+                    />
                 </Link>
 
                 {/* Desktop Navigation Links */}
@@ -100,7 +106,7 @@ const Header: React.FC = () => {
 
                     {/* CTA Button */}
                     <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors">
-                        Join Waitlist
+                        Waitlist
                     </button>
                 </div>
 

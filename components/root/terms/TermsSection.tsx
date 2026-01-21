@@ -192,7 +192,7 @@ const TermsSection = () => {
                                 </p>
                                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-6">
                                     <p className="text-gray-900 font-semibold mb-1">Nexotropi, Inc.</p>
-                                    <p className="text-[#1A4A7A] font-medium">nexusforge-ai@outlook.com</p>
+                                    <p className="text-[#1A4A7A] font-medium">support@nexotropi.com</p>
                                 </div>
                             </section>
 
