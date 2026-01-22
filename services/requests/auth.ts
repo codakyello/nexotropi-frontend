@@ -175,7 +175,7 @@ export const useAdminLogin = () => {
         },
         onSuccess: (data) => {
             console.log('Admin login successful:', data.message);
-            router.push("/admin/dashboard");
+            router.push("/admin/waitlist");
         },
         onError: (error: any) => {
             console.error('Admin login error:', error?.response?.data?.detail || error.message);
@@ -188,17 +188,9 @@ export const useGetAdminInfo = () => {
     return useQuery({
         queryKey: ['adminInfo'],
         queryFn: async (): Promise<ApiResponse> => {
-            const token = Cookies.get('admin_auth_token');
-
-            const response = await api.get<ApiResponse>('/auth/admin/me', {
-                headers: {
-                    Authorization: `Bearer ${token}`
-                }
-            });
-
+            const response = await api.get<ApiResponse>('/auth/admin/me');
             return response.data;
         },
-        enabled: !!Cookies.get('admin_auth_token'), // Only run if token exists
         retry: false,
         staleTime: 5 * 60 * 1000, // 5 minutes
     });

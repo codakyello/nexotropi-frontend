@@ -14,6 +14,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
 import Link from 'next/link';
 import Image from 'next/image';
+import { toast } from 'sonner';
 
 interface MenuItem {
     icon: string | React.ComponentType<any>; // Changed to accept string (for img src) or component
@@ -30,17 +31,41 @@ const AdminSidebar = () => {
     const [activeItem, setActiveItem] = useState('Dashboard');
     const router = useRouter();
     const pathname = usePathname();
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+
+    const handleLogout = async () => {
+        setIsLoggingOut(true);
+
+        try {
+            // Clear all auth-related cookies
+            Cookies.remove('access_token');
+            Cookies.remove('refresh_token');
+            Cookies.remove('access_token'); // if you use this separately
+
+            toast.success('Logged out successfully');
+
+            // Redirect to admin login
+            router.push('/auth/admin/sign-in');
+        } catch (error) {
+            toast.error('Failed to logout');
+            console.error('Logout error:', error);
+        } finally {
+            setIsLoggingOut(false);
+        }
+    };
+
 
     const menuItems: MenuSection[] = [
         {
             section: 'main',
             items: [
-                { icon: '/dashboard.svg', label: 'Dashboard', href: '/admin/dashboard' },
+                // { icon: '/dashboard.svg', label: 'Dashboard', href: '/admin/dashboard' },
                 { icon: Mail, label: 'Waitlist', href: '/admin/waitlist' },
-                { icon: '/menu.svg', label: 'Content Management', href: '/admin/content-management' },
-                { icon: '/persons.svg', label: 'Users', href: '/admin/users' },
-                { icon: '/roles.svg', label: 'Roles & Permisssions', href: '/admin/permission' },
-                { icon: '/lock.svg', label: 'Security Logs', href: '/admin/security-logs' },
+                // { icon: '/menu.svg', label: 'Content Management', href: '/admin/content-management' },
+                // { icon: '/persons.svg', label: 'Users', href: '/admin/users' },
+                // { icon: '/roles.svg', label: 'Roles & Permisssions', href: '/admin/permission' },
+                // { icon: '/lock.svg', label: 'Security Logs', href: '/admin/security-logs' },
             ]
         },
         {
@@ -154,9 +179,9 @@ const AdminSidebar = () => {
                 {/* Logout Button */}
                 <button
                     onClick={handleLogoutClick}
-                    className="flex items-center w-full px-4 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-all duration-200"
+                    className="flex cursor-pointer items-center w-full px-4 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-all duration-200"
                 >
-                    <LogOut className="h-5 w-5 mr-4 text-gray-500" />
+                    <LogOut onClick={handleLogout} className="h-5 w-5 mr-4 text-gray-500" />
                     Logout
                 </button>
             </div>
