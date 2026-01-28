@@ -150,9 +150,9 @@ const WaitlistAdminPage: React.FC = () => {
                                 className="appearance-none w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] bg-white cursor-pointer text-gray-900"
                             >
                                 <option value="all">All Users</option>
-                                <option value="waitlisted">Waitlisted</option>
+                                {/* <option value="waitlisted">Waitlisted</option>
                                 <option value="invited">Invited</option>
-                                <option value="registered">Registered</option>
+                                <option value="registered">Registered</option> */}
                             </select>
                             <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none" size={20} />
                         </div>

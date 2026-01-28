@@ -61,12 +61,12 @@ const Footer = () => {
                             >
                                 <Instagram className="w-4 h-4" />
                             </a>
-                            {/* <a
-                                href="#"
+                            <a
+                                href="https://www.youtube.com/@Nexotropi"
                                 className="w-10 h-10 border border-white rounded-full flex items-center justify-center hover:border-indigo-500 transition-colors"
                             >
                                 <Youtube className="w-4 h-4" />
-                            </a> */}
+                            </a>
                         </div>
                     </div>
 
@@ -77,7 +77,7 @@ const Footer = () => {
                         </p>
                         <div className="flex items-center space-x-8">
                             <a
-                                href="#"
+                                href="/privacy"
                                 className="text-white hover:text-white transition-colors text-sm"
                             >
                                 Privacy Policy
