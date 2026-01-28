@@ -17,6 +17,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { useWaitlist } from '@/services/requests/waitlist';
+import Link from 'next/link';
+import { useThemeStore } from '@/store/themeStore';
 
 // Zod schema for form validation
 const waitlistSchema = z.object({
@@ -41,6 +43,7 @@ interface WaitlistModalProps {
 const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
     const [step, setStep] = useState<'form' | 'success'>('form');
     const waitlistMutation = useWaitlist();
+    const { isDarkMode } = useThemeStore();
 
     const {
         register,
@@ -105,11 +108,13 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-            <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogContent className={`max-w-lg max-h-[90vh] overflow-y-auto transition-colors ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white'
+                }`}>
                 {step === 'form' ? (
                     <>
                         <DialogHeader>
-                            <DialogTitle className="text-xl font-semibold text-gray-900">
+                            <DialogTitle className={`text-xl font-semibold transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>
                                 Nexotropi – Early Access Waitlist Form
                             </DialogTitle>
                         </DialogHeader>
@@ -117,14 +122,18 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                             {/* Full Name */}
                             <div className="space-y-2">
-                                <Label htmlFor="fullName" className="text-sm text-[#5D6679]">
+                                <Label htmlFor="fullName" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-[#5D6679]'
+                                    }`}>
                                     Full name*
                                 </Label>
                                 <Input
                                     id="fullName"
                                     placeholder="Enter Full name"
                                     {...register('full_name')}
-                                    className={`w-full ${errors.full_name ? 'border-red-500' : ''}`}
+                                    className={`w-full transition-colors ${isDarkMode
+                                            ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500'
+                                            : 'bg-white border-gray-300 text-gray-900'
+                                        } ${errors.full_name ? 'border-red-500' : ''}`}
                                 />
                                 {errors.full_name && (
                                     <p className="text-sm text-red-600">{errors.full_name.message}</p>
@@ -133,7 +142,8 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
                             {/* Work Email */}
                             <div className="space-y-2">
-                                <Label htmlFor="workEmail" className="text-sm text-[#5D6679]">
+                                <Label htmlFor="workEmail" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-[#5D6679]'
+                                    }`}>
                                     Work Email Address*
                                 </Label>
                                 <Input
@@ -141,7 +151,10 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     type="email"
                                     placeholder="chioma@kargoo.io"
                                     {...register('email')}
-                                    className={`w-full ${errors.email ? 'border-red-500' : ''}`}
+                                    className={`w-full transition-colors ${isDarkMode
+                                            ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500'
+                                            : 'bg-white border-gray-300 text-gray-900'
+                                        } ${errors.email ? 'border-red-500' : ''}`}
                                 />
                                 {errors.email && (
                                     <p className="text-sm text-red-600">{errors.email.message}</p>
@@ -150,14 +163,18 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
                             {/* Company */}
                             <div className="space-y-2">
-                                <Label htmlFor="company" className="text-sm text-[#5D6679]">
+                                <Label htmlFor="company" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-[#5D6679]'
+                                    }`}>
                                     Company / Organization*
                                 </Label>
                                 <Input
                                     id="company"
                                     placeholder="Enter company name"
                                     {...register('company')}
-                                    className={`w-full ${errors.company ? 'border-red-500' : ''}`}
+                                    className={`w-full transition-colors ${isDarkMode
+                                            ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500'
+                                            : 'bg-white border-gray-300 text-gray-900'
+                                        } ${errors.company ? 'border-red-500' : ''}`}
                                 />
                                 {errors.company && (
                                     <p className="text-sm text-red-600">{errors.company.message}</p>
@@ -166,14 +183,18 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
                             {/* Industry */}
                             <div className="space-y-2">
-                                <Label htmlFor="industry" className="text-sm text-[#5D6679]">
+                                <Label htmlFor="industry" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-[#5D6679]'
+                                    }`}>
                                     Industry / Sector*
                                 </Label>
                                 <Input
                                     id="industry"
                                     placeholder="Enter industry"
                                     {...register('industry')}
-                                    className={`w-full ${errors.industry ? 'border-red-500' : ''}`}
+                                    className={`w-full transition-colors ${isDarkMode
+                                            ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500'
+                                            : 'bg-white border-gray-300 text-gray-900'
+                                        } ${errors.industry ? 'border-red-500' : ''}`}
                                 />
                                 {errors.industry && (
                                     <p className="text-sm text-red-600">{errors.industry.message}</p>
@@ -182,7 +203,8 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
 
                             {/* Usage Description */}
                             <div className="space-y-2">
-                                <Label htmlFor="usage" className="text-sm text-[#5D6679]">
+                                <Label htmlFor="usage" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-[#5D6679]'
+                                    }`}>
                                     How do you plan to use Nexotropi?
                                 </Label>
                                 <Textarea
@@ -190,7 +212,10 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     placeholder="Enter description..."
                                     {...register('use_case')}
                                     rows={4}
-                                    className="w-full resize-none"
+                                    className={`w-full resize-none transition-colors ${isDarkMode
+                                            ? 'bg-gray-800 border-gray-700 text-white placeholder:text-gray-500'
+                                            : 'bg-white border-gray-300 text-gray-900'
+                                        }`}
                                 />
                                 {errors.use_case && (
                                     <p className="text-sm text-red-600">{errors.use_case.message}</p>
@@ -204,7 +229,8 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     checked={watchedValues.receiveUpdates}
                                     onCheckedChange={(checked) => setValue('receiveUpdates', !!checked)}
                                 />
-                                <Label htmlFor="receiveUpdates" className="text-sm text-gray-700">
+                                <Label htmlFor="receiveUpdates" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                    }`}>
                                     I would like to receive updates & resources
                                 </Label>
                             </div>
@@ -218,15 +244,18 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     className={errors.agreeToTerms ? 'border-red-500' : ''}
                                 />
                                 <div className="space-y-1">
-                                    <Label htmlFor="agreeToTerms" className="text-sm text-gray-700">
+                                    <Label htmlFor="agreeToTerms" className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                        }`}>
                                         I agree to the{' '}
-                                        <a href="#" className="text-[#1A4A7A] underline">
+                                        <Link href="terms-of-service" className={`underline transition-colors ${isDarkMode ? 'text-[#93DBE4]' : 'text-[#1A4A7A]'
+                                            }`}>
                                             Terms of Service
-                                        </a>{' '}
+                                        </Link>{' '}
                                         and{' '}
-                                        <a href="#" className="text-[#1A4A7A] underline">
+                                        <Link href="/privacy" className={`underline transition-colors ${isDarkMode ? 'text-[#93DBE4]' : 'text-[#1A4A7A]'
+                                            }`}>
                                             Privacy Policy
-                                        </a>
+                                        </Link>
                                         .*
                                     </Label>
                                     {errors.agreeToTerms && (
@@ -238,7 +267,10 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                             {/* Submit Button */}
                             <Button
                                 type="submit"
-                                className="w-full py-5 px-4 rounded-md cursor-pointer font-medium text-white mt-6 bg-[#1A4A7A] hover:bg-[#1A4A7A] transition-colors"
+                                className={`w-full py-5 px-4 rounded-md cursor-pointer font-medium text-white mt-6 transition-colors ${isDarkMode
+                                        ? 'bg-[#93DBE4] text-gray-900 hover:bg-white'
+                                        : 'bg-[#1A4A7A] hover:bg-[#153d65]'
+                                    }`}
                                 disabled={isSubmitting || waitlistMutation.isPending}
                             >
                                 {isSubmitting || waitlistMutation.isPending ? 'Submitting...' : 'Join Waitlist'}
@@ -250,30 +282,41 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                     <div className="p-4 text-center">
                         {/* Success Icon */}
                         <div className="mb-6">
-                            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                                <Check className="h-8 w-8 text-green-600" />
+                            <div className={`mx-auto w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${isDarkMode ? 'bg-green-900' : 'bg-green-100'
+                                }`}>
+                                <Check className={`h-8 w-8 transition-colors ${isDarkMode ? 'text-green-300' : 'text-green-600'
+                                    }`} />
                             </div>
-                            <DialogTitle className="text-3xl font-bold text-gray-900 mb-2">You&apos;re In!</DialogTitle>
-                            <h3 className="text-lg text-gray-600 mb-4">Welcome to Nexotropi Early Access</h3>
-                            <p className="text-gray-600 text-sm mb-6">
+                            <DialogTitle className={`text-3xl font-bold mb-2 transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>You&apos;re In!</DialogTitle>
+                            <h3 className={`text-lg mb-4 transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                                }`}>Welcome to Nexotropi Early Access</h3>
+                            <p className={`text-sm mb-6 transition-colors ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`}>
                                 Congratulations! You&apos;ve officially secured your spot on our waitlist.
                             </p>
-                            <p className="text-gray-500 text-sm mb-8">
+                            <p className={`text-sm mb-8 transition-colors ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                                }`}>
                                 We can&apos;t wait to show you how we&apos;re turning uncertainty into clarity with AI-powered simulations.
                             </p>
                         </div>
 
                         {/* What's Next */}
                         <div className="mb-8">
-                            <h4 className="text-xl font-semibold text-gray-900 mb-6">What&apos;s Next?</h4>
+                            <h4 className={`text-xl font-semibold mb-6 transition-colors ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                }`}>What&apos;s Next?</h4>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-[#E8EDF2] rounded-lg p-4">
-                                    <p className="text-sm text-gray-700">
+                                <div className={`rounded-lg p-4 transition-colors ${isDarkMode ? 'bg-gray-800' : 'bg-[#E8EDF2]'
+                                    }`}>
+                                    <p className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                        }`}>
                                         Keep an eye on your inbox for exclusive updates
                                     </p>
                                 </div>
-                                <div className="bg-[#E8EDF2] rounded-lg p-4">
-                                    <p className="text-sm text-gray-700">
+                                <div className={`rounded-lg p-4 transition-colors ${isDarkMode ? 'bg-gray-800' : 'bg-[#E8EDF2]'
+                                    }`}>
+                                    <p className={`text-sm transition-colors ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                                        }`}>
                                         Be among the first to explore our platform when we launch
                                     </p>
                                 </div>
@@ -287,11 +330,15 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     description: 'Share this with your friends and colleagues.',
                                 });
                             }}
-                            className="w-full bg-[#1A4A7A] text-white py-3 px-4 rounded-md font-medium mb-2 transition-colors"
+                            className={`w-full py-3 px-4 rounded-md font-medium mb-2 transition-colors ${isDarkMode
+                                    ? 'bg-[#93DBE4] text-gray-900 hover:bg-white'
+                                    : 'bg-[#1A4A7A] text-white hover:bg-[#153d65]'
+                                }`}
                         >
                             Share with friends
                         </Button>
-                        <p className="text-sm text-gray-500">
+                        <p className={`text-sm transition-colors ${isDarkMode ? 'text-gray-500' : 'text-gray-500'
+                            }`}>
                             Invite others to join and be part of the future
                         </p>
                     </div>
