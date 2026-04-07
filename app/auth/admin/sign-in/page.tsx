@@ -5,6 +5,16 @@ import { useRouter } from 'next/navigation';
 import { useAdminLogin, useLogin } from '@/services/requests/auth';
 import Link from 'next/link';
 
+function getAuthErrorMessage(error: any) {
+    return (
+        error?.response?.data?.errors?.[0]?.message
+        || error?.response?.data?.message
+        || error?.response?.data?.detail
+        || error?.message
+        || "Invalid credentials"
+    )
+}
+
 export default function LoginPage() {
     const router = useRouter();
     const [email, setEmail] = useState('');
@@ -43,7 +53,7 @@ export default function LoginPage() {
                     {/* Error Message */}
                     {isError && (
                         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
-                            {error?.response?.data?.detail || "Invalid credentials"}
+                            {getAuthErrorMessage(error)}
                         </div>
                     )}
 

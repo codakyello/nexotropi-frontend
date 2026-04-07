@@ -7,7 +7,7 @@ export default function UserLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <body>
+        <body suppressHydrationWarning>
             <UserDashboardLayout>{children}</UserDashboardLayout>
         </body>
     );

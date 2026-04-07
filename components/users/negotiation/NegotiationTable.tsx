@@ -1,196 +1,122 @@
 "use client"
-import React, { useState } from 'react';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import React from 'react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreVertical, Eye, Play, Trash2 } from 'lucide-react';
+import { MoreVertical, Eye, Loader2, Plus } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useSessions, Session } from '@/services/requests/negotiation';
 
-// Sample data matching the image
-const tableData = [
-    {
-        id: 1,
-        company: 'CloudTech Systems',
-        title: 'Security Monitoring Extension',
-        time: '5:40 am',
-        status: 'In progress',
-        progress: 79,
-        alert: 'Action required'
-    },
-    {
-        id: 2,
-        company: 'Steel Materials',
-        title: 'Security Monitoring Extension',
-        time: '6:45 am',
-        status: 'In progress',
-        progress: 73,
-        alert: 'Action required'
-    },
-    {
-        id: 3,
-        company: 'CloudTech Systems',
-        title: 'Security Monitoring Extension',
-        time: '5:45 am',
-        status: 'Completed',
-        progress: 100,
-        alert: null
-    },
-    {
-        id: 4,
-        company: 'CloudTech Systems',
-        title: 'Security Monitoring Extension',
-        time: '8:20 am',
-        status: 'Completed',
-        progress: 100,
-        alert: null
-    }
-];
+const STATUS_BADGE: Record<string, string> = {
+    active: 'border-primary/30 bg-primary/10 text-primary',
+    paused: 'border-orange-500/30 bg-orange-500/10 text-orange-500',
+    ended: 'border-green-500/30 bg-green-500/10 text-green-500',
+    cancelled: 'border-destructive/30 bg-destructive/10 text-destructive',
+    awaiting_constraints: 'border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground',
+}
+
+const PHASE_PROGRESS: Record<string, number> = {
+    collection: 25,
+    negotiating: 60,
+    bafo: 85,
+}
 
 const NegotiationTable = () => {
-    const [currentPage, setCurrentPage] = useState(1);
     const router = useRouter()
-    const itemsPerPage = 4;
-    const totalEntries = 156;
-    const totalPages = Math.ceil(totalEntries / itemsPerPage);
+    const { data: sessions, isLoading } = useSessions()
 
-    const getStatusBadge = (status: string) => {
-        if (status === 'Completed') {
-            return (
-                <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100">
-                    {status}
-                </Badge>
-            );
-        }
+    if (isLoading) {
         return (
-            <Badge variant="secondary" className="bg-gray-100 text-gray-700 hover:bg-gray-100">
-                {status}
-            </Badge>
-        );
-    };
+            <div className="flex items-center justify-center py-24 gap-3 text-muted-foreground font-mono animate-pulse">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" /> Initializing table data…
+            </div>
+        )
+    }
 
-    const getAlertBadge = (alert: any) => {
-        if (!alert) return <span className="text-gray-400">-</span>;
+    if (!sessions?.length) {
         return (
-            <Badge variant="outline" className="text-orange-600 border-orange-200 bg-orange-50">
-                {alert}
-            </Badge>
-        );
-    };
-
-    const handlePageChange = (page: any) => {
-        setCurrentPage(page);
-    };
+            <div className="text-center py-24 bg-background/40 backdrop-blur-3xl border border-white/5 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] ring-1 ring-inset ring-white/5">
+                <p className="text-muted-foreground font-mono text-[11px] uppercase tracking-[0.2em] mb-4 opacity-50">Engine Idle</p>
+                <p className="text-foreground text-xl font-serif mb-8">No active negotiations</p>
+                <Button size="lg" onClick={() => router.push('/user/negotiation/new')} className="font-mono uppercase tracking-widest font-bold">
+                    <Plus className="h-4 w-4 mr-2" /> Initialize Session
+                </Button>
+            </div>
+        )
+    }
 
     return (
-        <div className="w-full bg-white">
-            {/* Table */}
+        <div className="w-full bg-card/40 backdrop-blur-3xl border border-white/5 rounded-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] overflow-hidden">
             <Table>
                 <TableHeader>
-                    <TableRow className="border-b border-gray-200">
-                        <TableHead className="text-gray-500 font-normal text-sm">Company</TableHead>
-                        <TableHead className="text-gray-500 font-normal text-sm">Title</TableHead>
-                        <TableHead className="text-gray-500 font-normal text-sm">Time</TableHead>
-                        <TableHead className="text-gray-500 font-normal text-sm">Status</TableHead>
-                        <TableHead className="text-gray-500 font-normal text-sm">Progress</TableHead>
-                        <TableHead className="text-gray-500 font-normal text-sm">Alert</TableHead>
-                        <TableHead className="text-gray-500 font-normal text-sm">Actions</TableHead>
+                    <TableRow className="border-b border-border/40 hover:bg-transparent">
+                        <TableHead className="text-foreground font-serif tracking-wide text-[15px]">Session Identifier</TableHead>
+                        <TableHead className="text-foreground font-serif tracking-wide text-[15px]">Status</TableHead>
+                        <TableHead className="text-foreground font-serif tracking-wide text-[15px]">Active Phase</TableHead>
+                        <TableHead className="text-foreground font-serif tracking-wide text-[15px]">Telemetry</TableHead>
+                        <TableHead className="text-foreground font-serif tracking-wide text-[15px]">Timestamp</TableHead>
+                        <TableHead className="text-foreground font-serif tracking-wide text-[15px] pt-4">Options</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {tableData.map((row) => (
-                        <TableRow key={row.id} className="border-b border-gray-100 hover:bg-gray-50">
-                            <TableCell className="font-medium text-gray-900">{row.company}</TableCell>
-                            <TableCell className="text-gray-700">{row.title}</TableCell>
-                            <TableCell className="text-gray-700">{row.time}</TableCell>
-                            <TableCell>{getStatusBadge(row.status)}</TableCell>
-                            <TableCell className="text-gray-700">{row.progress}%</TableCell>
-                            <TableCell>{getAlertBadge(row.alert)}</TableCell>
-                            <TableCell>
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button
-                                            variant="ghost"
-                                            className="h-8 w-8 p-0 hover:bg-gray-100"
-                                        >
-                                            <MoreVertical className="h-4 w-4 text-gray-500" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem onClick={() => router.push(`/user/negotiation/${1234}`)} className="flex items-center gap-2 text-gray-700">
-                                            <Eye className="h-4 w-4" />
-                                            View details
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="flex items-center gap-2 text-gray-700">
-                                            <Play className="h-4 w-4" />
-                                            Resume negotiation
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem className="flex items-center gap-2 text-red-600">
-                                            <Trash2 className="h-4 w-4" />
-                                            Delete negotiation
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {sessions.map((s: Session) => {
+                        const progress = s.status === 'ended' ? 100
+                            : s.status === 'cancelled' ? 100
+                            : PHASE_PROGRESS[s.negotiation_phase] ?? 10
+
+                        return (
+                            <TableRow key={s.id} className="border-b border-border/20 hover:bg-white/5 cursor-pointer transition-colors group" onClick={() => router.push(`/user/negotiation/${s.id}`)}>
+                                <TableCell className="py-4">
+                                    <p className="font-medium text-foreground text-[14px] group-hover:text-primary transition-colors">{s.title}</p>
+                                    {s.description && (
+                                        <p className="text-[12px] text-muted-foreground truncate max-w-xs opacity-70">{s.description}</p>
+                                    )}
+                                </TableCell>
+                                <TableCell>
+                                    <Badge variant="secondary" className={`font-mono text-[10px] uppercase font-bold tracking-widest shadow-none border ${STATUS_BADGE[s.status] ?? 'border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground'}`}>
+                                        {s.status.replace(/_/g, ' ')}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground font-mono text-[11px] uppercase tracking-wider">
+                                    {s.negotiation_phase}
+                                </TableCell>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-24 h-1.5 bg-black/20 rounded-full overflow-hidden border border-white/5">
+                                            <div 
+                                                className={`h-full ${s.status === 'active' ? 'bg-primary' : s.status === 'ended' ? 'bg-green-500' : 'bg-muted-foreground'} transition-all duration-1000 ease-out`}
+                                                style={{ width: `${progress}%` }} 
+                                            />
+                                        </div>
+                                        <span className="text-[11px] font-mono text-muted-foreground">{progress}%</span>
+                                    </div>
+                                </TableCell>
+                                <TableCell className="text-muted-foreground font-mono text-[12px]">
+                                    T-{new Date(s.created_at).toLocaleDateString()}
+                                </TableCell>
+                                <TableCell onClick={e => e.stopPropagation()}>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-accent/50 text-muted-foreground hover:text-foreground">
+                                                <MoreVertical className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-44 bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl">
+                                            <DropdownMenuItem onClick={() => router.push(`/user/negotiation/${s.id}`)} className="flex items-center gap-2 text-foreground font-mono text-[12px] uppercase tracking-wider hover:bg-accent/50 cursor-pointer">
+                                                <Eye className="h-4 w-4" /> View log
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        )
+                    })}
                 </TableBody>
             </Table>
 
-            {/* Pagination */}
-            <div className="flex items-center justify-between px-6 py-4 bg-white border-t border-gray-200">
-                <div className="text-sm text-gray-500">
-                    Showing 1 to 4 of {totalEntries} entries
-                </div>
-                <div className="flex items-center space-x-2">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePageChange(currentPage - 1)}
-                        disabled={currentPage === 1}
-                        className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                    >
-                        Previous
-                    </Button>
-
-                    {[1, 2, 3].map((page) => (
-                        <Button
-                            key={page}
-                            variant={currentPage === page ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => handlePageChange(page)}
-                            className={
-                                currentPage === page
-                                    ? "bg-[#1A4A7A] text-white hover:bg-[#1A4A7A]/90"
-                                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                            }
-                        >
-                            {page}
-                        </Button>
-                    ))}
-
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handlePageChange(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                        className="text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                    >
-                        Next
-                    </Button>
-                </div>
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border/40 bg-white/5">
+                <p className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground">{sessions.length} RECORD{sessions.length !== 1 ? 'S' : ''} DETECTED</p>
             </div>
         </div>
     );

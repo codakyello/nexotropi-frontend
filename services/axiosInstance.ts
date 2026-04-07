@@ -4,7 +4,6 @@ import Cookies from "js-cookie";
 
 export const api = axios.create({
     baseURL: `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1`,
-    timeout: 15_000,
     withCredentials: false,
 });
 
@@ -41,6 +40,16 @@ api.interceptors.response.use(
     async (error: AxiosError) => {
         const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
 
+        // If 403 Forbidden, token is completely missing or permissions failed
+        if (error.response?.status === 403) {
+            Cookies.remove("access_token");
+            Cookies.remove("refresh_token");
+            if (typeof window !== "undefined" && !window.location.pathname.startsWith("/auth/sign-in")) {
+                window.location.href = "/auth/sign-in";
+            }
+            return Promise.reject(error);
+        }
+
         // If not 401 or already retried, just reject
         if (error.response?.status !== 401 || originalRequest._retry) {
             return Promise.reject(error);
@@ -76,11 +85,11 @@ api.interceptors.response.use(
             // Call your refresh endpoint
             const refreshRes = await axios.post(
                 `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/auth/user/refresh`,
-                { refreshToken: rToken }
+                { refresh_token: rToken }
             );
 
-            const newAccessToken = (refreshRes.data?.accessToken as string) || "";
-            const newRefreshToken = (refreshRes.data?.refreshToken as string) || null;
+            const newAccessToken = (refreshRes.data?.data?.access_token as string) || "";
+            const newRefreshToken = (refreshRes.data?.data?.refresh_token as string) || null;
 
             // Persist tokens
             if (newAccessToken) Cookies.set("access_token", newAccessToken, { sameSite: "Lax" });
@@ -100,7 +109,9 @@ api.interceptors.response.use(
             // Optional: clear cookies & redirect to login
             Cookies.remove("access_token");
             Cookies.remove("refresh_token");
-            // window.location.href = "/auth/login"; // if you want
+            if (typeof window !== "undefined") {
+                window.location.href = "/auth/sign-in";
+            }
 
             return Promise.reject(refreshErr);
         } finally {

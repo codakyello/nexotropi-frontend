@@ -7,7 +7,8 @@ import {
     Share2,
     MessageSquare,
     TrendingUp,
-    FileText
+    FileText,
+    Users
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -30,15 +31,16 @@ const UsersSidebar = () => {
     const router = useRouter();
     const pathname = usePathname();
 
-    const menuItems: MenuSection[] = [
+    const menuItems: MenuSection[] = React.useMemo(() => [
         {
             section: 'main',
             items: [
-                { icon: '/dashboard.svg', label: 'Dashboard', href: '/user/dashboard' },
-                { icon: '/share.svg', label: 'Ecosystem', href: '/user/ecosystem' },
-                { icon: '/negotiate.svg', label: 'Negotiation', href: '/user/negotiation' },
-                { icon: '/analyse.svg', label: 'Analytics', href: '/user/analytics' },
-                { icon: '/audit.svg', label: 'Audit Trail', href: '/user/audit' },
+                { icon: LayoutDashboard, label: 'Dashboard', href: '/user/dashboard' },
+                { icon: Share2, label: 'Ecosystem', href: '/user/ecosystem' },
+                { icon: Users, label: 'Suppliers', href: '/user/ecosystem/suppliers' },
+                { icon: MessageSquare, label: 'Negotiation', href: '/user/negotiation' },
+                { icon: TrendingUp, label: 'Analytics', href: '/user/analytics' },
+                { icon: FileText, label: 'Audit Trail', href: '/user/audit' },
             ]
         },
         {
@@ -47,7 +49,7 @@ const UsersSidebar = () => {
                 { icon: Settings, label: 'Settings', href: '/user/settings' },
             ]
         }
-    ];
+    ], []);
 
     // Sync activeItem with current pathname
     useEffect(() => {
@@ -58,7 +60,7 @@ const UsersSidebar = () => {
         if (currentItem) {
             setActiveItem(currentItem.label);
         }
-    }, [pathname]);
+    }, [pathname, menuItems]);
 
     const handleMenuItemClick = (item: MenuItem): void => {
         setActiveItem(item.label);
@@ -74,54 +76,54 @@ const UsersSidebar = () => {
     // Helper function to render icons
     const renderIcon = (icon: string | React.ComponentType<any>, isActive: boolean) => {
         if (typeof icon === 'string') {
-            // It's an image path
             return (
-                <img
+                <Image
                     src={icon}
                     alt="icon"
-                    className={`h-5 w-5 mr-4 ${isActive ? 'text-[#1A4A7A]' : 'text-gray-500'}`}
+                    width={20}
+                    height={20}
+                    className={`mr-4 transition-all duration-300 ${isActive ? 'opacity-100 scale-110 drop-shadow-[0_0_8px_var(--color-primary)]' : 'opacity-60 invert dark:invert-0'}`}
                 />
             );
         } else {
-            // It's a React component (like Lucide icons)
             const IconComponent = icon;
             return (
                 <IconComponent
-                    className={`h-5 cursor-pointer w-5 mr-4 ${isActive ? 'text-[#1A4A7A]' : 'text-gray-500'}`}
+                    className={`h-5 cursor-pointer w-5 mr-4 transition-all duration-300 ${isActive ? 'text-primary scale-110 drop-shadow-[0_0_8px_var(--color-primary)]' : 'text-muted-foreground'}`}
                 />
             );
         }
     };
 
     return (
-        <div className="w-60 bg-white border-r border-gray-200 h-screen flex flex-col">
+        <div className="w-64 bg-background/60 backdrop-blur-xl border-r border-border/40 h-screen flex flex-col font-sans transition-all duration-300 relative z-40">
             {/* Header */}
-            <div className="p-6 mt-4">
-                <Link href="/" className="hidden sm:flex items-center space-x-2 text-white">
-                    <Image src="/nexotropi.png" width={188} height={32} alt="logo" />
+            <div className="p-8 mt-2">
+                <Link href="/" className="hidden sm:flex items-center space-x-2">
+                    <Image src="/nexotropi.png" width={200} height={40} alt="logo" className="drop-shadow-sm" />
                 </Link>
             </div>
 
             {/* Navigation Menu */}
-            <div className="flex-1 py-8">
-                <nav className="px-6">
-                    {/* Main menu items */}
-                    <div className="space-y-2">
+            <div className="flex-1 py-4">
+                <nav className="px-4">
+                    <div className="space-y-1.5">
                         {menuItems[0].items.map((item: MenuItem, itemIndex: number) => {
-                            const isActive = pathname === item.href || activeItem === item.label;
+                            const isActive = pathname === item.href || pathname.startsWith(item.href + '/') || activeItem === item.label;
 
                             return (
                                 <button
                                     key={itemIndex}
                                     type="button"
                                     onClick={() => handleMenuItemClick(item)}
-                                    className={`flex cursor-pointer items-center w-full px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 text-left ${isActive
-                                        ? 'bg-[#E8EDF2] text-[#1A4A7A] border-l-2 border-[#1A4A7A] rounded-lg'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                    className={`group flex cursor-pointer items-center w-full px-4 py-3 text-[14px] font-medium rounded-xl transition-all duration-300 text-left border 
+                                        ${isActive
+                                        ? 'bg-primary/10 text-primary border-primary/20 shadow-[inset_0_0_20px_0_var(--color-primary)]/5'
+                                        : 'text-muted-foreground hover:bg-accent/40 border-transparent hover:border-border/50 hover:text-foreground'
                                         }`}
                                 >
                                     {renderIcon(item.icon, isActive)}
-                                    {item.label}
+                                    <span className="tracking-wide">{item.label}</span>
                                 </button>
                             );
                         })}
@@ -130,7 +132,7 @@ const UsersSidebar = () => {
             </div>
 
             {/* Bottom Menu Items */}
-            <div className="px-6 pb-8 space-y-2">
+            <div className="px-4 pb-8 space-y-1.5">
                 {menuItems[1].items.map((item: MenuItem, itemIndex: number) => {
                     const isActive = pathname === item.href || activeItem === item.label;
 
@@ -139,13 +141,14 @@ const UsersSidebar = () => {
                             key={itemIndex}
                             type="button"
                             onClick={() => handleMenuItemClick(item)}
-                            className={`flex items-center cursor-pointer w-full px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 text-left ${isActive
-                                ? 'bg-blue-50 text-[#1A4A7A]'
-                                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                            className={`group flex cursor-pointer items-center w-full px-4 py-3 text-[14px] font-medium rounded-xl transition-all duration-300 text-left border 
+                                ${isActive
+                                ? 'bg-primary/10 text-primary border-primary/20 shadow-[inset_0_0_20px_0_var(--color-primary)]/5'
+                                : 'text-muted-foreground hover:bg-accent/40 border-transparent hover:border-border/50 hover:text-foreground'
                                 }`}
                         >
                             {renderIcon(item.icon, isActive)}
-                            {item.label}
+                            <span className="tracking-wide">{item.label}</span>
                         </button>
                     );
                 })}
@@ -153,10 +156,10 @@ const UsersSidebar = () => {
                 {/* Logout Button */}
                 <button
                     onClick={handleLogoutClick}
-                    className="flex items-center w-full px-4 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-all duration-200"
+                    className="group flex items-center w-full px-4 py-3 text-[14px] font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/20 border border-transparent rounded-xl transition-all duration-300"
                 >
-                    <LogOut className="h-5 w-5 mr-4 text-gray-500" />
-                    Logout
+                    <LogOut className="h-5 w-5 mr-4 transition-transform group-hover:scale-110" />
+                    <span className="tracking-wide">Logout</span>
                 </button>
             </div>
         </div>

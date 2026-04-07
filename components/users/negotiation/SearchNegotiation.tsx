@@ -31,72 +31,66 @@ const SearchNegotiation = () => {
 
 
     return (
-        <div className="w-full">
-            <div className='bg-white p-6 mb-12 rounded-lg'>
-                <div className="max-w-7xl mx-auto">
-                    {/* Title */}
-                    <div className="mb-8">
-                        <h1 className="text-xl font-bold text-gray-900">Search negotiations</h1>
+        <div className="w-full flex-1 flex flex-col">
+            <div className="w-full flex justify-between items-center mb-8">
+                <h2 className="text-lg font-serif text-foreground/80 hidden md:block">Active Feed</h2>
+                
+                <div className="flex flex-1 md:flex-none items-center gap-4">
+                    {/* Search Input */}
+                    <div className="relative group max-w-sm w-full">
+                        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                            <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+                        </div>
+                        <input
+                            type="text"
+                            placeholder="Search telemetry..."
+                            value={searchValue}
+                            onChange={(e) => setSearchValue(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2.5 bg-background/40 backdrop-blur-md border border-border/50 rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all duration-300 text-sm shadow-inner"
+                        />
                     </div>
 
-                    {/* Search and Filter Bar */}
-                    <div className="flex items-center gap-8">
-                        {/* Search Input */}
-                        <div className="flex-1 relative">
-                            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                                <Search className="h-5 w-5 text-gray-400" />
+                    {/* Status Dropdown */}
+                    <div className="relative">
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="flex items-center justify-between px-4 py-2.5 bg-background/40 backdrop-blur-md border border-border/50 rounded-xl text-foreground hover:bg-accent/40 hover:border-border transition-all duration-300 min-w-[140px] shadow-sm"
+                        >
+                            <span className="text-[13px] font-mono tracking-wide">{selectedStatus}</span>
+                            <ChevronDown className={`h-4 w-4 ml-2 text-muted-foreground transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-foreground' : ''}`} />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {isDropdownOpen && (
+                            <div className="absolute top-full mt-2 left-0 right-0 bg-background/95 backdrop-blur-2xl border border-border/50 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                                {statusOptions.map((status) => (
+                                    <button
+                                        key={status}
+                                        onClick={() => handleStatusSelect(status)}
+                                        className={`w-full px-4 py-2.5 text-left text-[13px] font-mono tracking-wide transition-colors duration-200 ${selectedStatus === status ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'}`}
+                                    >
+                                        {status}
+                                    </button>
+                                ))}
                             </div>
-                            <input
-                                type="text"
-                                placeholder="Search negotiation"
-                                value={searchValue}
-                                onChange={(e) => setSearchValue(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none transition-all duration-200"
-                            />
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Status Dropdown */}
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                                className="flex items-center justify-between px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-all duration-200 min-w-[140px]"
-                            >
-                                <span className="text-sm font-medium">{selectedStatus}</span>
-                                <ChevronDown className={`h-4 w-4 ml-2 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {isDropdownOpen && (
-                                <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                                    {statusOptions.map((status) => (
-                                        <button
-                                            key={status}
-                                            onClick={() => handleStatusSelect(status)}
-                                            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 transition-colors duration-150 first:rounded-t-lg last:rounded-b-lg ${selectedStatus === status ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
-                                                }`}
-                                        >
-                                            {status}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* View Toggle Buttons */}
-                        <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-                            {/* Grid View Button */}
-                            <button
-                                onClick={toggleMode}
-                                className={`p-2 transition-all cursor-pointer duration-200 bg-white text-gray-600 hover:bg-gray-50 border border-gray-200`}
-                            >
-                                {viewMode === "grid" ? (<Image src="/list.svg" alt="grid view" width={20} height={20} />) : (<Image src="/table.svg" alt="table view" width={20} height={20} />)}
-                            </button>
-                        </div>
+                    {/* View Toggle Buttons */}
+                    <div className="flex bg-background/40 backdrop-blur-md border border-border/50 rounded-xl p-1 shadow-sm">
+                        <button
+                            onClick={toggleMode}
+                            className={`p-1.5 transition-all cursor-pointer duration-300 rounded-lg hover:bg-accent/50 ${viewMode === "grid" ? 'bg-accent text-foreground shadow-sm' : 'text-muted-foreground'}`}
+                        >
+                            {viewMode === "grid" ? (<Image src="/table.svg" alt="table view" width={18} height={18} className="opacity-70 dark:invert" />) : (<Image src="/list.svg" alt="grid view" width={18} height={18} className="opacity-70 dark:invert" />)}
+                        </button>
                     </div>
                 </div>
             </div>
 
-            {viewMode === 'grid' ? <NegotiationsGrid /> : <NegotiationTable />}
+            <div className="w-full transition-opacity duration-500 animate-in fade-in">
+                {viewMode === 'grid' ? <NegotiationsGrid /> : <NegotiationTable />}
+            </div>
         </div>
     );
 };

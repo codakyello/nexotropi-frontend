@@ -1,32 +1,22 @@
 "use client"
 import NegotiationSummary from '@/components/users/negotiation/NegotiationSummary'
+import RFQDrafting from '@/components/users/negotiation/RFQDrafting'
 import { ArrowLeft } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import React from 'react'
+import React, { use } from 'react'
 
-const NegotiationSummaryPage = () => {
+const NegotiationSummaryPage = ({ params }: { params: Promise<{ id: string }> }) => {
+    const { id } = use(params)
     const router = useRouter()
     return (
-        <div className='bg-gray-50 px-4 pb-10'>
-            <div className="mb-6">
-                <button onClick={() => router.back()} className="flex items-center cursor-pointer text-gray-600 hover:text-gray-900 transition-colors duration-200 group">
-                    <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform duration-200" />
-                    <span className="text-sm font-medium">Back to Negotiations</span>
+        <div className='w-full pb-10'>
+            <div className="mb-6 mt-2">
+                <button onClick={() => router.back()} className="flex items-center cursor-pointer text-muted-foreground hover:text-foreground transition-colors duration-300 group px-4 py-2 hover:bg-white/5 rounded-lg w-auto">
+                    <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform duration-300 opacity-70" />
+                    <span className="text-sm font-medium">Back</span>
                 </button>
             </div>
-
-            {/* Title and Status Section */}
-            <div className="flex items-center gap-4 mb-3">
-                <h1 className="text-2xl font-bold text-gray-900">Steel Materials</h1>
-                <div className="px-3 py-1.5 bg-[#FEF5E7] text-[#F59E0B] rounded-full text-sm font-normal">
-                    Ongoing
-                </div>
-            </div>
-
-            {/* Creation Date */}
-            <p className="text-gray-400 text-sm mb-12">
-                Created: 01/08/2025
-            </p>
+            <RFQDrafting sessionId={id} />
             <NegotiationSummary />
         </div>
     )

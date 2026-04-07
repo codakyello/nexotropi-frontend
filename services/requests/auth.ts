@@ -11,11 +11,11 @@ export const useRegister = () => {
         mutationFn: async (userData: RegisterData): Promise<ApiResponse> => {
             const response = await api.post<ApiResponse>('/auth/user/register', userData);
 
-            // Store token in cookie if it exists in response
+            const isSecure = window.location.protocol === 'https:';
             if (response.data.data?.access_token) {
                 Cookies.set('access_token', response.data.data.access_token, {
-                    expires: 7, // 7 days
-                    secure: true,
+                    expires: 7,
+                    secure: isSecure,
                     sameSite: 'strict'
                 });
             }
@@ -39,11 +39,18 @@ export const useLogin = () => {
         mutationFn: async (userData: LoginData): Promise<ApiResponse> => {
             const response = await api.post<ApiResponse>('/auth/user/login', userData);
             console.log("response--->", response.data)
-            // Store token in cookie if it exists in response
+            const isSecure = window.location.protocol === 'https:';
             if (response.data.data?.access_token) {
                 Cookies.set('access_token', response.data.data.access_token, {
-                    expires: 7, // 7 days
-                    secure: true,
+                    expires: 7,
+                    secure: isSecure,
+                    sameSite: 'strict'
+                });
+            }
+            if (response.data.data?.refresh_token) {
+                Cookies.set('refresh_token', response.data.data.refresh_token, {
+                    expires: 30,
+                    secure: isSecure,
                     sameSite: 'strict'
                 });
             }
@@ -162,11 +169,18 @@ export const useAdminLogin = () => {
 
             console.log("res-->", response.data)
 
-            // Store token in cookie if it exists in response
+            const isSecure = window.location.protocol === 'https:';
             if (response.data.data?.access_token) {
                 Cookies.set('access_token', response.data.data.access_token, {
-                    expires: 7, // 7 days
-                    secure: true,
+                    expires: 7,
+                    secure: isSecure,
+                    sameSite: 'strict'
+                });
+            }
+            if (response.data.data?.refresh_token) {
+                Cookies.set('refresh_token', response.data.data.refresh_token, {
+                    expires: 30,
+                    secure: isSecure,
                     sameSite: 'strict'
                 });
             }
@@ -192,6 +206,19 @@ export const useGetAdminInfo = () => {
             return response.data;
         },
         retry: false,
-        staleTime: 5 * 60 * 1000, // 5 minutes
+        staleTime: 0,
+    });
+};
+
+// Get Current User Info Query
+export const useGetUserInfo = () => {
+    return useQuery({
+        queryKey: ['userInfo'],
+        queryFn: async (): Promise<ApiResponse> => {
+            const response = await api.get<ApiResponse>('/auth/user/me');
+            return response.data;
+        },
+        retry: false,
+        staleTime: 0,
     });
 };
