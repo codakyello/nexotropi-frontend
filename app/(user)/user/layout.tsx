@@ -1,4 +1,5 @@
 import UserDashboardLayout from "@/components/layout/UserDashboardLayout";
+import UserPrivateRoute from "@/components/layout/UserPrivateRoute";
 
 
 export default function UserLayout({
@@ -8,7 +9,9 @@ export default function UserLayout({
 }>) {
     return (
         <body suppressHydrationWarning>
-            <UserDashboardLayout>{children}</UserDashboardLayout>
+            <UserPrivateRoute>
+                <UserDashboardLayout>{children}</UserDashboardLayout>
+            </UserPrivateRoute>
         </body>
     );
 }

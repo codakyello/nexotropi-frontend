@@ -104,10 +104,13 @@ const Header: React.FC = () => {
                         )}
                     </button>
 
-                    {/* CTA Button */}
-                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors">
-                        Waitlist
-                    </button>
+                    {/* Auth Links */}
+                    <Link href="/auth/sign-in" className="text-white font-medium hover:text-gray-200 transition-colors">
+                        Sign in
+                    </Link>
+                    <Link href="/auth/sign-up" className="bg-white cursor-pointer text-purple-900 px-6 py-2 rounded-full font-medium hover:bg-gray-100 transition-colors">
+                        Get started
+                    </Link>
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -159,9 +162,12 @@ const Header: React.FC = () => {
                         )}
                     </button>
 
-                    <button onClick={() => setIsModalOpen(true)} className="bg-white cursor-pointer text-purple-900 px-2 text-nowrap py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                        Join Waitlist
-                    </button>
+                    <Link href="/auth/sign-in" className="text-white font-medium text-sm hover:text-gray-200 transition-colors">
+                        Sign in
+                    </Link>
+                    <Link href="/auth/sign-up" className="bg-white cursor-pointer text-purple-900 px-3 text-nowrap py-2 rounded-lg font-medium text-sm hover:bg-gray-100 transition-colors">
+                        Get started
+                    </Link>
                 </div>
             </nav>
 
