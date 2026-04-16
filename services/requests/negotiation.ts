@@ -1051,6 +1051,13 @@ export const useNylasStatus = () =>
     retry: false,
   });
 
+export const useNylasExchangeToken = () =>
+  useMutation({
+    mutationFn: async ({ code, state }: { code: string; state: string }) => {
+      await api.post("/nylas/exchange-token", { code, state });
+    },
+  });
+
 export const useNylasDisconnect = () => {
   const qc = useQueryClient();
   return useMutation({
