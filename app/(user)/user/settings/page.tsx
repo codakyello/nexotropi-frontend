@@ -3,12 +3,16 @@ import AccountSettings from '@/components/users/settings/AccountSettings'
 import React, { useState } from 'react'
 import Link from 'next/link'
 import { Mail, Building2, ChevronRight } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { useNylasConnection } from '@/services/requests/negotiation'
 
 const TAB_STYLE = (active: boolean) =>
     `px-6 cursor-pointer py-2 rounded-none font-medium transition-colors ${active ? 'bg-[#E8EDF2] text-gray-900' : 'text-gray-600 hover:bg-gray-100'}`
 
 const UserSettings = () => {
     const [activeTab, setActiveTab] = useState("account")
+    const { data: nylasStatus, isConnected, isChecking } = useNylasConnection()
+
     return (
         <div className='bg-gray-50'>
             <div className="rounded-lg p-8 mb-12">
@@ -50,8 +54,21 @@ const UserSettings = () => {
                                     <Mail className="h-5 w-5 text-[#1A4A7A]" />
                                 </div>
                                 <div>
-                                    <p className="font-semibold text-gray-900">Email Connection</p>
-                                    <p className="text-sm text-gray-500">Connect Gmail or Outlook via Nylas to enable AI negotiations</p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-semibold text-gray-900">Email Connection</p>
+                                        {!isChecking && (
+                                            <Badge variant="outline" className={isConnected ? "text-green-700 border-green-200 bg-green-50" : "text-gray-500"}>
+                                                {isConnected ? "Connected" : "Not connected"}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-gray-500">
+                                        {isChecking
+                                            ? "Checking Nylas connection status..."
+                                            : isConnected
+                                                ? `Connected via ${nylasStatus?.provider ?? "Nylas"}. Manage your email integration settings.`
+                                                : "Connect Gmail or Outlook via Nylas to enable AI negotiations"}
+                                    </p>
                                 </div>
                             </div>
                             <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#1A4A7A]" />

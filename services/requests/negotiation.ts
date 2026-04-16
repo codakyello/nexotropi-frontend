@@ -1048,16 +1048,53 @@ export const useNylasStatus = () =>
         throw err;
       }
     },
+    refetchOnMount: "always",
     retry: false,
   });
 
+export const isNylasConnected = (nylasStatus: NylasGrantStatus | null | undefined) => {
+  const status = (nylasStatus?.status ?? "").toLowerCase();
+  return Boolean(nylasStatus?.grant_id) && status !== "disconnected" && status !== "expired";
+};
+
+export const useNylasConnection = () => {
+  const query = useNylasStatus();
+  const isConnected = isNylasConnected(query.data);
+  const isChecking = query.isLoading || (query.isFetching && !isConnected);
+
+  return {
+    ...query,
+    isConnected,
+    isChecking,
+    shouldShowDisconnected: !query.isError && !isChecking && !isConnected,
+  };
+};
+
+export const useNylasExchangeToken = () => {
+  const qc = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ code, state }: { code: string; state: string }) => {
+      const res = await api.post<ApiResponse<NylasGrantStatus>>("/nylas/exchange-token", { code, state });
+      return res.data.data;
+    },
+    onSuccess: (nylasStatus) => {
+      qc.setQueryData(["nylas-status"], nylasStatus);
+    },
+  });
+};
+
 export const useNylasDisconnect = () => {
   const qc = useQueryClient();
+
   return useMutation({
     mutationFn: async () => {
-      await api.delete("/nylas/connect");
+      const res = await api.delete<ApiResponse<NylasGrantStatus>>("/nylas/connect");
+      return res.data.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["nylas-status"] }),
+    onSuccess: (nylasStatus) => {
+      qc.setQueryData(["nylas-status"], nylasStatus);
+    },
   });
 };
 

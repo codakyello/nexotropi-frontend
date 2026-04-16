@@ -22,7 +22,7 @@ import {
     useStartNegotiating, useStartBAFO,
     useApproveCounteroffer, useAcceptNegotiation,
     usePauseNegotiation, useResumeNegotiation, useEndNegotiation,
-    useUpdateConstraints, useNylasStatus, useRFQ, useUpdateRFQLineItems,
+    useUpdateConstraints, useNylasConnection, useRFQ, useUpdateRFQLineItems,
     subscribeToSessionEvents, downloadNegotiationAttachment,
     Negotiation, NegotiationEvent, Supplier,
 } from '@/services/requests/negotiation'
@@ -124,7 +124,7 @@ const NegotiationSummary = () => {
     const { data: constraints, refetch: refetchConstraints } = useConstraints(id)
     const { data: negotiations, refetch: refetchNegotiations } = useNegotiationsBySession(id)
     const { data: suppliers } = useSuppliers()
-    const { data: nylasStatus, isLoading: isNylasLoading, isError: isNylasError } = useNylasStatus()
+    const { isChecking: isNylasChecking, isError: isNylasError, shouldShowDisconnected: shouldShowNylasDisconnected } = useNylasConnection()
     const { data: rfq } = useRFQ(id)
 
     const pauseSession = usePauseSession()
@@ -211,13 +211,10 @@ const NegotiationSummary = () => {
         }
     }
 
-    // Backend returns { grant_id, status, provider } — field is "grant_id"
-    const nylasConnected = Boolean(nylasStatus?.grant_id)
-
     return (
         <div className="space-y-6 w-full max-w-7xl mx-auto">
             {/* ── Nylas connection banner ───────────────────────────────── */}
-            {!isNylasLoading && !isNylasError && !nylasConnected && (
+            {shouldShowNylasDisconnected && (
                 <div className="flex items-center justify-between gap-4 bg-destructive/5 border border-destructive/20 rounded-xl px-5 py-3.5">
                     <div className="flex items-center gap-3 text-destructive">
                         <Mail className="h-4 w-4 shrink-0" />
@@ -228,7 +225,7 @@ const NegotiationSummary = () => {
                     </Link>
                 </div>
             )}
-            {!isNylasLoading && isNylasError && (
+            {!isNylasChecking && isNylasError && (
                 <div className="flex items-center justify-between gap-4 bg-orange-500/5 border border-orange-500/20 rounded-xl px-5 py-3.5">
                     <div className="flex items-center gap-3 text-orange-600">
                         <Mail className="h-4 w-4 shrink-0" />

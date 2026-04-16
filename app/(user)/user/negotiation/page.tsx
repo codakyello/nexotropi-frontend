@@ -4,15 +4,14 @@ import NegotiationTable from '@/components/users/negotiation/NegotiationTable'
 import SearchNegotiation from '@/components/users/negotiation/SearchNegotiation'
 import Link from 'next/link'
 import React from 'react'
-import { useNylasConnect, useNylasStatus } from '@/services/requests/negotiation'
+import { useNylasConnect, useNylasConnection } from '@/services/requests/negotiation'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 
 const Page = () => {
-    const { data: nylas, isLoading, isError } = useNylasStatus()
+    const { isChecking, isError, shouldShowDisconnected } = useNylasConnection()
     const connectNylas = useNylasConnect()
-    const isConnected = Boolean(nylas?.grant_id)
 
     const handleConnect = async (provider: 'google' | 'microsoft') => {
         try {
@@ -29,7 +28,7 @@ const Page = () => {
 
     return (
         <div className='w-full pb-10'>
-            {!isLoading && !isError && !isConnected && (
+            {shouldShowDisconnected && (
                 <div className="mb-8 p-6 bg-destructive/5 backdrop-blur-xl border border-destructive/20 rounded-2xl flex items-center justify-between shadow-[0_8px_32px_0_rgba(0,0,0,0.05)]">
                     <div className="flex items-center gap-4 text-destructive">
                         <AlertCircle className="w-6 h-6 animate-pulse" />
@@ -60,7 +59,7 @@ const Page = () => {
                     </div>
                 </div>
             )}
-            {!isLoading && isError && (
+            {!isChecking && isError && (
                 <div className="mb-8 p-6 bg-orange-500/5 backdrop-blur-xl border border-orange-500/20 rounded-2xl flex items-center gap-4 text-orange-500 shadow-[0_8px_32px_0_rgba(0,0,0,0.05)]">
                     <AlertCircle className="w-6 h-6" />
                     <div>
