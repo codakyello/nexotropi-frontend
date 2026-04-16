@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { useNylasStatus, useNylasConnect, useNylasDisconnect } from "@/services/requests/negotiation";
+import { useNylasConnection, useNylasConnect, useNylasDisconnect } from "@/services/requests/negotiation";
 import { useQueryClient } from "@tanstack/react-query";
 
 export default function EmailSetupPage() {
@@ -21,14 +21,11 @@ function EmailSetupContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const qc = useQueryClient();
-  // isFetching covers both initial load AND background refetches (stale cache)
-  const { data: nylasStatus, isLoading, isFetching, isError, refetch } = useNylasStatus();
+  const { data: nylasStatus, isChecking, isError, refetch, isConnected } = useNylasConnection();
   const connectNylas = useNylasConnect();
   const disconnectNylas = useNylasDisconnect();
 
-  const isConnected = !!(nylasStatus?.grant_id);
-
-  // Handle OAuth callback: backend redirects to /?nylas_connected=true after OAuth
+  // Handle frontend callback completion after the token exchange succeeds.
   useEffect(() => {
     if (searchParams.get("nylas_connected") === "true") {
       toast.success("Email connected successfully!");
@@ -36,7 +33,7 @@ function EmailSetupContent() {
     } else if (searchParams.get("nylas_error")) {
       toast.error("Email connection failed. Please try again.");
     }
-  }, []);
+  }, [qc, searchParams]);
 
   const handleConnect = async (provider: string) => {
     try {
@@ -78,7 +75,7 @@ function EmailSetupContent() {
       <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-6">
         <h3 className="font-semibold text-gray-900 mb-4">Connection Status</h3>
 
-        {isLoading || isFetching ? (
+        {isChecking ? (
           <div className="flex items-center gap-2 text-gray-500">
             <Loader2 className="h-4 w-4 animate-spin" /> Checking connection...
           </div>
