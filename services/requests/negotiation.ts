@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../axiosInstance";
+import { useRouter } from "next/navigation";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -1071,6 +1072,7 @@ export const useNylasConnection = () => {
 };
 
 export const useNylasExchangeToken = () => {
+  const router = useRouter();
   const qc = useQueryClient();
 
   return useMutation({
@@ -1079,7 +1081,11 @@ export const useNylasExchangeToken = () => {
       return res.data.data;
     },
     onSuccess: (nylasStatus) => {
+      // console.log('authenticated successfully', nylasStatus)
+      // console.log("[Nylas callback] ✅ token exchange succeeded");
+      // router.replace("/user/settings/email?nylas_connected=true");
       qc.setQueryData(["nylas-status"], nylasStatus);
+      qc.invalidateQueries({ queryKey: ["nylas-status"] });
     },
   });
 };

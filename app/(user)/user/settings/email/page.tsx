@@ -31,7 +31,10 @@ function EmailSetupContent() {
       toast.success("Email connected successfully!");
       qc.invalidateQueries({ queryKey: ["nylas-status"] });
     } else if (searchParams.get("nylas_error")) {
-      toast.error("Email connection failed. Please try again.");
+      toast.error(
+        searchParams.get("nylas_error_message") ||
+        "Email connection failed. Please try again."
+      );
     }
   }, [qc, searchParams]);
 
