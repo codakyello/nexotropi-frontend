@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
     useSuppliers, useCreateSession, useSetConstraints,
-    useCreateRFQ, useExtractRFQFile, useExtractBrief,
+    useCreateRFQ, useExtractRFQ, useExtractRFQFile, useExtractBrief,
     Supplier, ExtractedField, RFQExtractionResult, RFQLineItemCreate, BriefParameter, NegotiationBrief, SpecRequirement,
 } from '@/services/requests/negotiation'
 import { NegotiationBriefCard } from './NegotiationBriefCard'
@@ -154,6 +154,7 @@ const NegotiationForm = () => {
     const createSession = useCreateSession()
     const createRFQ = useCreateRFQ()
     const setConstraints = useSetConstraints()
+    const extractRFQ = useExtractRFQ()
     const extractRFQFile = useExtractRFQFile()
     const extractBrief = useExtractBrief()
 
@@ -165,8 +166,12 @@ const NegotiationForm = () => {
     const [title, setTitle] = useState('')
     const [minResponses, setMinResponses] = useState(1)
     const [selectedSuppliers, setSelectedSuppliers] = useState<string[]>([])
+    const selectedSupplierCount = selectedSuppliers.length
+    const minResponsesTooHigh = selectedSupplierCount > 0 && minResponses > selectedSupplierCount
 
     // ── Step 2 ──────────────────────────────────────────────────────────────
+    const [rfqInputMode, setRfqInputMode] = useState<'upload' | 'write'>('upload')
+    const [writeContent, setWriteContent] = useState('')
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [uploadedText, setUploadedText] = useState('')
 
@@ -196,7 +201,13 @@ const NegotiationForm = () => {
     const [lateSubmissionPolicy, setLateSubmissionPolicy] = useState<'notify_buyer' | 'auto_reject'>('notify_buyer')
 
     const toggleSupplier = (id: string) =>
-        setSelectedSuppliers(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id])
+        setSelectedSuppliers(prev => {
+            const next = prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
+            if (next.length > 0 && minResponses > next.length) {
+                setMinResponses(next.length)
+            }
+            return next
+        })
 
     const updateFieldValue = (key: string, value: string) =>
         setFieldValues(prev => ({ ...prev, [key]: value }))
@@ -208,6 +219,9 @@ const NegotiationForm = () => {
     const handleContinueToStep2 = async () => {
         if (!title.trim()) return toast.error('Session name is required')
         if (selectedSuppliers.length === 0) return toast.error('Select at least one supplier')
+        if (minResponses > selectedSuppliers.length) {
+            return toast.error('Minimum responses cannot exceed the number of selected suppliers')
+        }
         try {
             const session = await createSession.mutateAsync({
                 title,
@@ -244,10 +258,15 @@ const NegotiationForm = () => {
     const handleContinueToStep3 = async () => {
         if (!sessionId) return
 
-        if (!uploadedFile) return toast.error('Please upload a file first')
+        if (rfqInputMode === 'write' && !writeContent.trim())
+            return toast.error('Write your RFQ content before continuing')
+        if (rfqInputMode === 'upload' && !uploadedFile)
+            return toast.error('Please upload a file first')
 
         try {
-            const result = await extractRFQFile.mutateAsync({ sessionId, file: uploadedFile })
+            const result = rfqInputMode === 'write'
+                ? await extractRFQ.mutateAsync({ sessionId, content: writeContent })
+                : await extractRFQFile.mutateAsync({ sessionId, file: uploadedFile! })
             // Store extracted text so we can pass it to createRFQ in the next step
             // (the backend extracted the text; we use fields to reconstruct a summary)
             const fieldSummary = result.fields
@@ -259,7 +278,11 @@ const NegotiationForm = () => {
                     `${li.line_number}. ${li.item_name}${li.quantity ? ' — Qty: ' + li.quantity : ''}${li.unit ? ' ' + li.unit : ''}`
                 ).join('\n')
                 : ''
-            setUploadedText(fieldSummary + lineItemSummary || `[Uploaded file: ${uploadedFile.name}]`)
+            setUploadedText(
+                rfqInputMode === 'write'
+                    ? writeContent
+                    : (fieldSummary + lineItemSummary || `[Uploaded file: ${uploadedFile!.name}]`)
+            )
 
             setExtraction(result)
             // Seed fieldValues from extracted values (for the Procurement Requirements display)
@@ -477,7 +500,7 @@ const NegotiationForm = () => {
         setLineItems(prev => prev.filter((_, i) => i !== idx).map((li, i) => ({ ...li, line_number: i + 1 })))
 
     const isPending = createSession.isPending
-    const isExtracting = extractRFQFile.isPending
+    const isExtracting = extractRFQ.isPending || extractRFQFile.isPending
     const isExtractingBrief = extractBrief.isPending
     const isActivating = createRFQ.isPending || setConstraints.isPending
 
@@ -552,11 +575,22 @@ const NegotiationForm = () => {
                             <div>
                                 <Label>Min responses before AI starts negotiating</Label>
                                 <Input
-                                    type="number" min={1} value={minResponses}
-                                    onChange={e => setMinResponses(parseInt(e.target.value) || 1)}
-                                    className="mt-1 w-32"
+                                    type="number"
+                                    min={1}
+                                    max={selectedSupplierCount || undefined}
+                                    value={minResponses}
+                                    onChange={e => {
+                                        const rawValue = parseInt(e.target.value) || 1
+                                        const maxAllowed = selectedSupplierCount || rawValue
+                                        setMinResponses(Math.min(Math.max(rawValue, 1), maxAllowed))
+                                    }}
+                                    className={`mt-1 w-32 ${minResponsesTooHigh ? 'border-red-300 focus-visible:ring-red-400' : ''}`}
                                 />
-                                <p className="text-xs text-gray-400 mt-1">Collect this many quotes before negotiating begins</p>
+                                <p className={`text-xs mt-1 ${minResponsesTooHigh ? 'text-red-500' : 'text-gray-400'}`}>
+                                    {selectedSupplierCount > 0
+                                        ? `Collect this many quotes before negotiating begins. Max: ${selectedSupplierCount} selected supplier${selectedSupplierCount !== 1 ? 's' : ''}.`
+                                        : 'Collect this many quotes before negotiating begins'}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -628,7 +662,7 @@ const NegotiationForm = () => {
                     <div className="flex justify-end">
                         <Button
                             onClick={handleContinueToStep2}
-                            disabled={isPending || !title.trim() || selectedSuppliers.length === 0}
+                            disabled={isPending || !title.trim() || selectedSuppliers.length === 0 || minResponsesTooHigh}
                             className="bg-[#1A4A7A] hover:bg-[#1A4A7A]/90 gap-2"
                         >
                             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
@@ -648,15 +682,29 @@ const NegotiationForm = () => {
                             This is the document your suppliers will receive. Write it directly or upload an existing one.
                         </p>
 
+                        {/* Write / Upload tab switcher */}
+                        <div className="flex gap-1 mb-5 p-1 bg-gray-100 rounded-lg w-fit">
+                            {(['upload', 'write'] as const).map(mode => (
+                                <button
+                                    key={mode}
+                                    type="button"
+                                    onClick={() => setRfqInputMode(mode)}
+                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rfqInputMode === mode ? 'bg-white text-[#1A4A7A] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                                >
+                                    {mode === 'upload' ? 'Upload file' : 'Write'}
+                                </button>
+                            ))}
+                        </div>
+
                         {/* Required-fields guide */}
                         <div className="mb-5 bg-blue-50 border border-blue-100 rounded-lg p-4">
-                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Your RFQ must include these fields</p>
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Your RFQ should include these details</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 {[
                                     { label: 'Quantity / Scope', hint: 'How many units or what volume of service' },
-                                    { label: 'Required Delivery Date', hint: 'When goods/services must be delivered' },
-                                    { label: 'Response Deadline', hint: 'When suppliers must reply by' },
-                                    { label: 'Delivery Location', hint: 'Where goods should be shipped to' },
+                                    { label: 'Delivery lead time or date', hint: 'When goods/services must be delivered' },
+                                    { label: 'Response deadline', hint: 'When suppliers must reply by' },
+                                    { label: 'Delivery location', hint: 'Where goods should be shipped to' },
                                 ].map(f => (
                                     <div key={f.label} className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
@@ -668,49 +716,64 @@ const NegotiationForm = () => {
                                 ))}
                             </div>
                             <p className="text-xs text-blue-500 mt-3">
-                                The AI will scan your document for these fields and alert you to anything missing before you can activate the session.
+                                The AI will scan your RFQ for these fields and alert you to anything missing before you can activate the session.
                             </p>
                         </div>
 
-                        <div className="space-y-4 pt-2">
-                            <div
-                                onClick={() => fileInputRef.current?.click()}
-                                className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-[#1A4A7A] hover:bg-blue-50/30 transition-colors"
-                            >
-                                {uploadedFile ? (
-                                    <div className="flex items-center justify-center gap-3">
-                                        <FileText className="h-8 w-8 text-[#1A4A7A]" />
-                                        <div className="text-left">
-                                            <p className="font-medium text-gray-900">{uploadedFile.name}</p>
-                                            <p className="text-xs text-gray-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                        {rfqInputMode === 'upload' ? (
+                            <div className="space-y-4">
+                                <div
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-[#1A4A7A] hover:bg-blue-50/30 transition-colors"
+                                >
+                                    {uploadedFile ? (
+                                        <div className="flex items-center justify-center gap-3">
+                                            <FileText className="h-8 w-8 text-[#1A4A7A]" />
+                                            <div className="text-left">
+                                                <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                                                <p className="text-xs text-gray-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={e => { e.stopPropagation(); setUploadedFile(null); setUploadedText('') }}
+                                                className="ml-2 text-gray-400 hover:text-red-500"
+                                            >
+                                                <X className="h-4 w-4" />
+                                            </button>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={e => { e.stopPropagation(); setUploadedFile(null); setUploadedText('') }}
-                                            className="ml-2 text-gray-400 hover:text-red-500"
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <Upload className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                                        <p className="text-gray-600 font-medium">Click to upload your RFQ</p>
-                                        <p className="text-xs text-gray-400 mt-1">PDF, DOCX, or TXT — max 10MB</p>
-                                    </>
-                                )}
+                                    ) : (
+                                        <>
+                                            <Upload className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                                            <p className="text-gray-600 font-medium">Click to upload your RFQ</p>
+                                            <p className="text-xs text-gray-400 mt-1">PDF, DOCX, or TXT — max 10MB</p>
+                                        </>
+                                    )}
+                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".pdf,.docx,.txt"
+                                    className="hidden"
+                                    onChange={handleFileChange}
+                                />
+                                <p className="text-xs text-gray-400">
+                                    The AI will read your document to extract negotiation parameters. Your original file will be sent to suppliers unchanged.
+                                </p>
                             </div>
-                            <input
-                                ref={fileInputRef}
-                                type="file"
-                                accept=".pdf,.docx,.txt"
-                                className="hidden"
-                                onChange={handleFileChange}
-                            />
-                            <p className="text-xs text-gray-400">
-                                The AI will read your document to extract negotiation parameters. Your original file will be sent to suppliers unchanged.
-                            </p>
-                        </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <textarea
+                                    value={writeContent}
+                                    onChange={e => setWriteContent(e.target.value)}
+                                    placeholder={`Write your RFQ here. For example:\n\nWe require 500 units of industrial-grade steel pipes (Schedule 40, 2-inch diameter).\n\nDelivery location: Lagos, Nigeria\nRequired delivery: Within 30 days of PO\nResponse deadline: 5 May 2026\nPayment terms: Net 30\n\nPlease quote unit price, total price, and confirm availability.`}
+                                    rows={14}
+                                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1A4A7A]/30 focus:border-[#1A4A7A] resize-y"
+                                />
+                                <p className="text-xs text-gray-400">
+                                    The AI will extract negotiation parameters from your text. Only this content will be sent to suppliers — not your private targets.
+                                </p>
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-between">
