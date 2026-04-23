@@ -1536,10 +1536,10 @@ function EscalationCard({
     return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
             <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> Supplier has a question the AI could not answer
+                <AlertTriangle className="h-3.5 w-3.5" /> Supplier message needs buyer input
             </p>
             <div>
-                <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">Supplier asked</p>
+                <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">AI summary</p>
                 <p className="text-sm text-amber-950 font-medium">{escalation.supplier_question_summary}</p>
                 <button
                     onClick={() => setShowEmail(v => !v)}

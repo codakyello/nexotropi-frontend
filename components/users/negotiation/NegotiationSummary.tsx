@@ -101,6 +101,35 @@ const NEG_STATUS_COLOR: Record<string, string> = {
     ended: 'bg-gray-200 text-gray-500',
 }
 
+const LIFECYCLE_COLOR: Record<string, string> = {
+    invited: 'bg-gray-100 text-gray-600 border-gray-200',
+    rfq_sent: 'bg-blue-50 text-blue-700 border-blue-200',
+    acknowledged: 'bg-cyan-50 text-cyan-700 border-cyan-200',
+    quote_received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    extracting_quote: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    needs_buyer_review: 'bg-amber-50 text-amber-700 border-amber-200',
+    waiting_on_buyer: 'bg-purple-50 text-purple-700 border-purple-200',
+    counter_sent: 'bg-sky-50 text-sky-700 border-sky-200',
+    waiting_on_supplier: 'bg-slate-100 text-slate-700 border-slate-200',
+    clarification_pending: 'bg-orange-50 text-orange-700 border-orange-200',
+    bafo_requested: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    awarded: 'bg-green-50 text-green-700 border-green-200',
+    rejected: 'bg-red-50 text-red-700 border-red-200',
+    timed_out: 'bg-gray-200 text-gray-600 border-gray-300',
+    ghosted: 'bg-stone-100 text-stone-700 border-stone-200',
+}
+
+function lifecycleMeta(negotiation: Negotiation) {
+    const state = negotiation.lifecycle_state || negotiation.status
+    return {
+        state,
+        label: negotiation.lifecycle_label || state.replace(/_/g, ' '),
+        description: negotiation.lifecycle_description || 'Supplier status will update as the workflow progresses.',
+        chip: LIFECYCLE_COLOR[state] || 'bg-muted text-muted-foreground border-border',
+        requiresAction: Boolean(negotiation.requires_buyer_action),
+    }
+}
+
 const EVENT_BORDER: Record<string, string> = {
     email_received: 'border-blue-400',
     email_sent: 'border-green-400',
@@ -591,29 +620,6 @@ function CollectionStatusPanel({
     const progress = Math.min(100, Math.round((quotesReceived / minRequired) * 100))
     const deadlineLabel = deadline ? new Date(deadline).toLocaleString() : null
 
-    const supplierState = (negotiation: Negotiation) => {
-        const pending = negotiation.pending_counteroffer as Record<string, any> | null
-        if (pending?.queued_quote) {
-            return {
-                label: 'Quote received',
-                detail: 'Waiting for collection threshold or deadline',
-                chip: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-            }
-        }
-        if (negotiation.status === 'awaiting_clarification') {
-            return {
-                label: 'Clarification needed',
-                detail: 'Supplier replied but needs manual routing',
-                chip: 'bg-amber-50 text-amber-700 border-amber-200',
-            }
-        }
-        return {
-            label: 'Awaiting quote',
-            detail: 'No priced quote received yet',
-            chip: 'bg-gray-100 text-gray-600 border-gray-200',
-        }
-    }
-
     return (
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
@@ -655,7 +661,7 @@ function CollectionStatusPanel({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {negotiations.map((negotiation) => {
                         const supplier = supplierMap.get(negotiation.supplier_id)
-                        const state = supplierState(negotiation)
+                        const state = lifecycleMeta(negotiation)
                         return (
                             <div key={negotiation.id} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3">
                                 <div className="flex items-start justify-between gap-3">
@@ -666,7 +672,7 @@ function CollectionStatusPanel({
                                         {supplier?.email && (
                                             <p className="text-xs text-gray-400 truncate mt-0.5">{supplier.email}</p>
                                         )}
-                                        <p className="text-xs text-gray-500 mt-2">{state.detail}</p>
+                                        <p className="text-xs text-gray-500 mt-2">{state.description}</p>
                                     </div>
                                     <span className={`shrink-0 rounded-full border px-2 py-1 text-[11px] font-medium ${state.chip}`}>
                                         {state.label}
@@ -951,6 +957,7 @@ function NegotiationRow({ negotiation, supplier, sessionId, isExpanded, onToggle
     const neg = negotiation as any
     const isHardViolation = negotiation.end_reason === 'hard_violation'
     const isAgreement = negotiation.end_reason === 'agreement'
+    const lifecycle = lifecycleMeta(negotiation)
 
     return (
         <div className={`transition-all duration-200 ${isExpanded ? 'bg-primary/5 border-b border-primary/10' : 'hover:bg-muted/30 border-b border-border'}`}>
@@ -963,6 +970,14 @@ function NegotiationRow({ negotiation, supplier, sessionId, isExpanded, onToggle
                         <Badge variant="secondary" className={`text-xs font-medium shadow-none border border-muted-foreground/20 bg-muted-foreground/10 text-muted-foreground`}>
                             {negotiation.status.replace(/_/g, ' ')}
                         </Badge>
+                        <Badge variant="outline" className={`text-xs font-medium shadow-none border ${lifecycle.chip}`}>
+                            {lifecycle.label}
+                        </Badge>
+                        {lifecycle.requiresAction && (
+                            <Badge variant="outline" className="text-xs font-medium shadow-none border border-amber-300 bg-amber-50 text-amber-700">
+                                Buyer action
+                            </Badge>
+                        )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
                         {supplier?.company && (
@@ -987,6 +1002,11 @@ function NegotiationRow({ negotiation, supplier, sessionId, isExpanded, onToggle
                         {isHardViolation && (
                             <span className="flex items-center gap-1 text-xs text-destructive bg-destructive/10 border border-destructive/20 rounded px-2 py-0.5 animate-pulse">
                                 <XCircle className="h-3 w-3" /> Parameter Breach
+                            </span>
+                        )}
+                        {lifecycle.requiresAction && negotiation.lifecycle_description && (
+                            <span className="text-xs text-muted-foreground">
+                                {negotiation.lifecycle_description}
                             </span>
                         )}
                     </div>

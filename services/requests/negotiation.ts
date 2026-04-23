@@ -135,6 +135,30 @@ export interface Negotiation {
   started_at: string | null;
   ended_at: string | null;
   created_at: string;
+  open_escalation_count?: number;
+  lifecycle_state?: string | null;
+  lifecycle_label?: string | null;
+  lifecycle_description?: string | null;
+  requires_buyer_action?: boolean;
+  last_activity_at?: string | null;
+}
+
+export interface BuyerActionItem {
+  id: string;
+  action_type: string;
+  priority: string;
+  title: string;
+  description: string;
+  session_id: string;
+  session_title: string;
+  negotiation_id: string | null;
+  supplier_id: string | null;
+  supplier_name: string | null;
+  supplier_email: string | null;
+  lifecycle_state: string | null;
+  cta_label: string;
+  cta_href: string;
+  created_at: string | null;
 }
 
 export interface NegotiationMessage {
@@ -427,6 +451,15 @@ export const useNegotiation = (id: string) =>
       return res.data.data;
     },
     enabled: !!id,
+  });
+
+export const useBuyerActionCenter = () =>
+  useQuery({
+    queryKey: ["buyer-action-center"],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<BuyerActionItem[]>>("/negotiations/action-center");
+      return res.data.data;
+    },
   });
 
 export const useNegotiationMessages = (id: string) =>
@@ -1168,12 +1201,15 @@ export function subscribeToSessionEvents(
   const url = `${baseUrl}/api/v1/sessions/${sessionId}/stream?token=${encodeURIComponent(token)}`;
   const es = new EventSource(url);
 
-  es.addEventListener("pipeline_event", (e) => {
+  const handleEvent = (e: MessageEvent) => {
     try {
       const data = JSON.parse(e.data);
       onEvent(normalizeNegotiationEvent(data));
     } catch { }
-  });
+  };
+
+  es.addEventListener("session_event", handleEvent);
+  es.addEventListener("pipeline_event", handleEvent);
 
   es.onerror = () => {
     // EventSource auto-reconnects
@@ -1193,12 +1229,15 @@ export function subscribeToNegotiationEvents(
   const url = `${baseUrl}/api/v1/negotiations/${negotiationId}/stream?token=${encodeURIComponent(token)}`;
   const es = new EventSource(url);
 
-  es.addEventListener("pipeline_event", (e) => {
+  const handleEvent = (e: MessageEvent) => {
     try {
       const data = JSON.parse(e.data);
       onEvent(normalizeNegotiationEvent(data));
     } catch { }
-  });
+  };
+
+  es.addEventListener("negotiation_step", handleEvent);
+  es.addEventListener("pipeline_event", handleEvent);
 
   return () => es.close();
 }

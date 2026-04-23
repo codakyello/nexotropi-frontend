@@ -1,4 +1,5 @@
 import DashboardMetrics from '@/components/users/dashboard/DashboardMetrics'
+import BuyerActionCenter from '@/components/users/dashboard/BuyerActionCenter'
 import RecentActivity from '@/components/users/dashboard/RecentActivity'
 import Link from 'next/link'
 import React from 'react'
@@ -27,6 +28,7 @@ const page = () => {
                 </div>
             </div>
             <DashboardMetrics />
+            <BuyerActionCenter />
             <RecentActivity />
         </div>
     )
