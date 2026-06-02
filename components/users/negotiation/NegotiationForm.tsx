@@ -1,9 +1,10 @@
 "use client"
-import React, { useRef, useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { useRef, useState, useMemo, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import {
     Check, Users, Settings2, FileText, Loader2, ChevronRight,
-    AlertTriangle, CheckCircle, HelpCircle, Upload, Pencil, X,
+    AlertTriangle, CheckCircle, HelpCircle, Upload, X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,8 +15,9 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import {
     useSuppliers, useCreateSession, useSetConstraints,
-    useCreateRFQ, useExtractRFQ, useExtractRFQFile, useExtractBrief,
-    Supplier, ExtractedField, RFQExtractionResult, RFQLineItemCreate, BriefParameter, NegotiationBrief, SpecRequirement,
+    useCreateRFQ, useExtractRFQFile, useExtractBrief, useSession,
+    useNegotiationsBySession, useRFQ, useAddSuppliersToSession, useRemoveSupplierFromSession,
+    Supplier, ExtractedField, RFQExtractionResult, RFQLineItemCreate, BriefParameter, NegotiationBrief, SpecRequirement, DocumentGoverningFields,
 } from '@/services/requests/negotiation'
 import { NegotiationBriefCard } from './NegotiationBriefCard'
 import { getApiError } from '@/lib/utils'
@@ -61,10 +63,10 @@ function StepIndicator({ current }: { current: number }) {
                     <React.Fragment key={s.id}>
                         <div className="flex items-center gap-2">
                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all
-                                ${done ? 'bg-green-500 text-white' : active ? 'bg-[#1A4A7A] text-white' : 'bg-gray-100 text-gray-400'}`}>
+                                ${done ? 'bg-green-500 text-white' : active ? 'bg-primary text-white' : 'bg-gray-100 text-gray-400'}`}>
                                 {done ? <Check className="h-4 w-4" /> : s.id}
                             </div>
-                            <span className={`text-sm font-medium hidden sm:block ${active ? 'text-[#1A4A7A]' : done ? 'text-green-600' : 'text-gray-400'}`}>
+                            <span className={`text-sm font-medium hidden sm:block ${active ? 'text-primary' : done ? 'text-green-600' : 'text-gray-400'}`}>
                                 {s.label}
                             </span>
                         </div>
@@ -82,6 +84,186 @@ function StepIndicator({ current }: { current: number }) {
 // Only price and quantity are truly private numeric targets.
 // Delivery and payment terms are in the RFQ (suppliers see them) — handled as qualitative specs.
 const BRIEF_FIELD_KEYS = new Set(['unit_price', 'quantity'])
+
+const REQUIRED_RFQ_FIELDS = [
+    { label: 'Currency', hint: 'The pricing currency shown in the RFQ, such as NGN or USD' },
+    { label: 'Quantity / Scope', hint: 'How many units or what volume of service is being requested' },
+    { label: 'Delivery lead time or date', hint: 'When goods or services must be delivered' },
+    { label: 'Submission deadline', hint: 'The date by which suppliers must submit their quote — an acknowledgment is not enough' },
+    { label: 'Delivery location', hint: 'Where goods should be shipped or performed' },
+    { label: 'Payment terms', hint: 'The payment basis suppliers should quote against, such as Net 30' },
+    { label: 'Tax basis', hint: 'Whether quoted prices should be tax-inclusive or tax-exclusive' },
+]
+
+const normalizeCurrencyCode = (value: unknown): string | null => {
+    if (typeof value !== 'string') return null
+    const raw = value.trim()
+    if (!raw) return null
+    const upper = raw.toUpperCase()
+    if (['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NGN'].includes(upper)) return upper
+
+    const aliases: Record<string, string> = {
+        '$': 'USD',
+        'US DOLLAR': 'USD',
+        'US DOLLARS': 'USD',
+        'UNITED STATES DOLLAR': 'USD',
+        '€': 'EUR',
+        'EURO': 'EUR',
+        'EUROS': 'EUR',
+        '£': 'GBP',
+        'POUND': 'GBP',
+        'POUNDS': 'GBP',
+        'STERLING': 'GBP',
+        '₦': 'NGN',
+        'NAIRA': 'NGN',
+        'NIGERIAN NAIRA': 'NGN',
+        'NIGERIAN NAIRA ₦': 'NGN',
+        'NIGERIAN NAIRA (₦)': 'NGN',
+    }
+    const normalized = raw.replace(/[()/-]/g, ' ').replace(/\s+/g, ' ').trim().toUpperCase()
+    return aliases[normalized] || aliases[upper] || null
+}
+
+// Known non-standard timezone abbreviations JS Date can't parse, mapped to UTC offset strings.
+const _TZ_OFFSETS: Record<string, string> = {
+    WAT: '+01:00', CAT: '+02:00', EAT: '+03:00',
+    IST: '+05:30', PKT: '+05:00', BST: '+06:00',
+    ICT: '+07:00', WIB: '+07:00', CST: '+08:00',
+    SGT: '+08:00', PHT: '+08:00', JST: '+09:00',
+    AEST: '+10:00', AEDT: '+11:00', NZST: '+12:00',
+}
+
+const parseDocumentDeadlineToIso = (value: unknown): string | undefined => {
+    if (value == null) return undefined
+    const text = String(value).trim()
+    if (!text) return undefined
+
+    let parsed = new Date(text)
+    if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+
+    // Strip trailing timezone abbreviation (e.g. "WAT", "EAT") and retry.
+    const tzMatch = text.match(/\b([A-Z]{2,5})$/)
+    if (tzMatch) {
+        const offset = _TZ_OFFSETS[tzMatch[1]]
+        const withoutTz = text.slice(0, -tzMatch[0].length).trim().replace(/,?\s*$/, '')
+        // Try with explicit UTC offset first, then bare (treat as local).
+        for (const candidate of offset ? [`${withoutTz} ${offset}`, withoutTz] : [withoutTz]) {
+            parsed = new Date(candidate)
+            if (!Number.isNaN(parsed.getTime())) return parsed.toISOString()
+        }
+    }
+
+    return undefined
+}
+
+const parsePositiveInt = (value: unknown): number | undefined => {
+    if (value == null) return undefined
+    const match = String(value).match(/\d+/)
+    if (!match) return undefined
+    const parsed = Number(match[0])
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+const findExtractedFieldValue = (result: RFQExtractionResult | null, key: string): string | null => {
+    if (!result) return null
+    const field = result.fields.find(f => f.key === key)
+    if (!field || field.value == null) return null
+    const value = String(field.value).trim()
+    return value || null
+}
+
+const buildDocumentGoverningFields = (result: RFQExtractionResult | null, fieldValues: Record<string, string>): DocumentGoverningFields | undefined => {
+    if (!result) return undefined
+    const rawCurrency = fieldValues.currency?.trim() || findExtractedFieldValue(result, 'currency') || undefined
+    const rawResponseDeadline = fieldValues.response_deadline?.trim() || findExtractedFieldValue(result, 'response_deadline') || undefined
+    const rawDeliveryLocation = fieldValues.delivery_location?.trim() || findExtractedFieldValue(result, 'delivery_location') || undefined
+    const rawDeliveryWorkingDays = fieldValues.delivery_working_days?.trim() || findExtractedFieldValue(result, 'delivery_working_days') || undefined
+    const rawDeliveryDate = fieldValues.delivery_date?.trim() || findExtractedFieldValue(result, 'delivery_date') || undefined
+    const rawPaymentTerms = fieldValues.payment_terms?.trim() || findExtractedFieldValue(result, 'payment_terms') || undefined
+    const rawQuantity = fieldValues.quantity?.trim() || findExtractedFieldValue(result, 'quantity') || undefined
+    const rawTaxBasis = fieldValues.tax_basis?.trim() || findExtractedFieldValue(result, 'tax_basis') || undefined
+
+    const governingFields: DocumentGoverningFields = {}
+    const normalizedCurrency = normalizeCurrencyCode(rawCurrency)
+    if (normalizedCurrency) governingFields.currency = normalizedCurrency
+    const responseDeadlineIso = parseDocumentDeadlineToIso(rawResponseDeadline)
+    if (responseDeadlineIso) governingFields.response_deadline = responseDeadlineIso
+    if (rawResponseDeadline) governingFields.response_deadline_text = rawResponseDeadline
+    if (rawDeliveryLocation) governingFields.delivery_location = rawDeliveryLocation
+    const deliveryWorkingDays = parsePositiveInt(rawDeliveryWorkingDays)
+    if (deliveryWorkingDays) governingFields.delivery_working_days = deliveryWorkingDays
+    const deliveryDateIso = parseDocumentDeadlineToIso(rawDeliveryDate)
+    if (deliveryDateIso) governingFields.delivery_date = deliveryDateIso
+    if (rawDeliveryDate) governingFields.delivery_date_text = rawDeliveryDate
+    if (rawPaymentTerms) governingFields.payment_terms = rawPaymentTerms
+    const paymentTermsDays = parsePositiveInt(rawPaymentTerms)
+    if (paymentTermsDays) governingFields.payment_terms_days = paymentTermsDays
+    const quantity = parsePositiveInt(rawQuantity)
+    if (quantity) governingFields.quantity = quantity
+    if (rawTaxBasis) governingFields.tax_basis = rawTaxBasis
+
+    return Object.keys(governingFields).length > 0 ? governingFields : undefined
+}
+
+const normalizeStoredDocumentGoverningFields = (value: DocumentGoverningFields | undefined): DocumentGoverningFields | undefined => {
+    if (!value) return undefined
+    const normalized: DocumentGoverningFields = {}
+    const currency = normalizeCurrencyCode(value.currency)
+    if (currency) normalized.currency = currency
+    const responseDeadline = parseDocumentDeadlineToIso(value.response_deadline || value.response_deadline_text)
+    if (responseDeadline) normalized.response_deadline = responseDeadline
+    if (value.response_deadline_text) normalized.response_deadline_text = value.response_deadline_text
+    if (value.delivery_location) normalized.delivery_location = value.delivery_location
+    if (value.delivery_working_days) normalized.delivery_working_days = value.delivery_working_days
+    const deliveryDate = parseDocumentDeadlineToIso(value.delivery_date || value.delivery_date_text)
+    if (deliveryDate) normalized.delivery_date = deliveryDate
+    if (value.delivery_date_text) normalized.delivery_date_text = value.delivery_date_text
+    if (value.payment_terms) normalized.payment_terms = value.payment_terms
+    if (value.payment_terms_days) normalized.payment_terms_days = value.payment_terms_days
+    if (value.quantity) normalized.quantity = value.quantity
+    if (value.tax_basis) normalized.tax_basis = value.tax_basis
+    return Object.keys(normalized).length > 0 ? normalized : undefined
+}
+
+const buildInitialFieldValues = (result: RFQExtractionResult | null): Record<string, string> => {
+    if (!result) return {}
+    const initial: Record<string, string> = {}
+    result.fields.forEach(f => {
+        if (f.value !== null && f.value !== undefined) {
+            initial[f.key] = String(f.value)
+        }
+    })
+    return initial
+}
+
+const buildInitialSpecTiers = (result: RFQExtractionResult | null): Record<string, 'hard' | 'flexible'> => {
+    if (!result) return {}
+    const initialTiers: Record<string, 'hard' | 'flexible'> = {}
+    result.fields.filter(f => !BRIEF_FIELD_KEYS.has(f.key)).forEach(f => {
+        initialTiers[f.key] = 'flexible'
+    })
+    return initialTiers
+}
+
+const validateRequiredRfqFields = (result: RFQExtractionResult, fieldValues: Record<string, string>) => {
+    const missing: string[] = []
+    const governingFields = buildDocumentGoverningFields(result, fieldValues)
+    const fieldValue = (key: string) => fieldValues[key]?.trim() || findExtractedFieldValue(result, key)
+
+    if (!governingFields?.currency) missing.push('Currency')
+    if (!governingFields?.response_deadline) missing.push('Submission deadline')
+    if (!governingFields?.delivery_location) missing.push('Delivery location')
+    if (!fieldValue('delivery_working_days') && !fieldValue('delivery_date')) {
+        missing.push('Delivery lead time or date')
+    }
+    const hasLineItems = result.line_items && result.line_items.length > 0
+    if (!hasLineItems && !fieldValue('quantity')) {
+        missing.push('Quantity / Scope')
+    }
+
+    if (missing.length === 0) return null
+    return `The following required fields could not be found or parsed: ${missing.join(', ')}.`
+}
 
 // ── Extracted field row ─────────────────────────────────────────────────────
 
@@ -150,17 +332,39 @@ function FieldRow({
 
 const NegotiationForm = () => {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const resumeSessionId = searchParams?.get('session') ?? null
     const { data: suppliers, isLoading: loadingSuppliers } = useSuppliers()
     const createSession = useCreateSession()
     const createRFQ = useCreateRFQ()
     const setConstraints = useSetConstraints()
-    const extractRFQ = useExtractRFQ()
     const extractRFQFile = useExtractRFQFile()
     const extractBrief = useExtractBrief()
+    const addSuppliersToSession = useAddSuppliersToSession()
+    const removeSupplierFromSession = useRemoveSupplierFromSession()
+    const {
+        data: resumeSession,
+        isError: resumeSessionIsError,
+        error: resumeSessionError,
+        refetch: refetchResumeSession,
+    } = useSession(resumeSessionId ?? '')
+    const {
+        data: resumeRfq,
+        isError: resumeRfqIsError,
+        error: resumeRfqError,
+    } = useRFQ(resumeSessionId ?? '')
 
     const [step, setStep] = useState(1)
     const [sessionId, setSessionId] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [hasHydratedFromResume, setHasHydratedFromResume] = useState(false)
+    const activeDraftSessionId = sessionId ?? resumeSessionId ?? ''
+    const {
+        data: resumeNegotiations,
+        isError: resumeNegotiationsIsError,
+        error: resumeNegotiationsError,
+        refetch: refetchResumeNegotiations,
+    } = useNegotiationsBySession(activeDraftSessionId)
 
     // ── Step 1 ──────────────────────────────────────────────────────────────
     const [title, setTitle] = useState('')
@@ -170,10 +374,12 @@ const NegotiationForm = () => {
     const minResponsesTooHigh = selectedSupplierCount > 0 && minResponses > selectedSupplierCount
 
     // ── Step 2 ──────────────────────────────────────────────────────────────
-    const [rfqInputMode, setRfqInputMode] = useState<'upload' | 'write'>('upload')
-    const [writeContent, setWriteContent] = useState('')
     const [uploadedFile, setUploadedFile] = useState<File | null>(null)
     const [uploadedText, setUploadedText] = useState('')
+    const [savedRfqFilename, setSavedRfqFilename] = useState<string | null>(null)
+    const [extractionFieldError, setExtractionFieldError] = useState<string | null>(null)
+    const [step2Processing, setStep2Processing] = useState(false)
+    const [step2ProcessingLabel, setStep2ProcessingLabel] = useState('Analysing RFQ…')
 
     // ── Step 3 — extracted fields (Section A) ──────────────────────────────
     const [extraction, setExtraction] = useState<RFQExtractionResult | null>(null)
@@ -189,6 +395,7 @@ const NegotiationForm = () => {
 
     // ── Step 3 — strategy settings ──────────────────────────────────────────
     const [currency, setCurrency] = useState('USD')
+    const [currencyTouched, setCurrencyTouched] = useState(false)
     const [maxRounds, setMaxRounds] = useState(5)
     const [strategy, setStrategy] = useState('balanced')
     const [approvalMode, setApprovalMode] = useState('auto')
@@ -199,6 +406,81 @@ const NegotiationForm = () => {
     const [earlyCloseThreshold, setEarlyCloseThreshold] = useState('0.02')
     const [timeoutHours, setTimeoutHours] = useState(48)
     const [lateSubmissionPolicy, setLateSubmissionPolicy] = useState<'notify_buyer' | 'auto_reject'>('notify_buyer')
+
+    useEffect(() => {
+        if (currencyTouched) return
+        const extractedCurrency =
+            normalizeCurrencyCode(findExtractedFieldValue(extraction, 'currency'))
+            || normalizeCurrencyCode(resumeRfq?.draft_email?.document_governing_fields?.currency)
+        if (extractedCurrency) {
+            setCurrency(extractedCurrency)
+        }
+    }, [currencyTouched, extraction, resumeRfq?.draft_email?.document_governing_fields?.currency])
+
+    // ── Resume from ?session=<id> ──────────────────────────────────────────
+    // Resume draft sessions from the correct stage:
+    // - awaiting_rfq: supplier/session shell exists, but no RFQ was saved
+    // - awaiting_constraints: RFQ exists, buyer still needs to confirm rules
+    useEffect(() => {
+        if (hasHydratedFromResume) return
+        if (!resumeSessionId) return
+        if (!resumeSession || !resumeNegotiations) return
+        const resumeRfqStatus = (resumeRfqError as any)?.response?.status
+        const resumeRfqMissing = resumeRfqIsError && resumeRfqStatus === 404
+        const resumeRfqFailed = resumeRfqIsError && resumeRfqStatus !== 404
+        if (resumeRfqFailed) return
+        if (!resumeRfq && !resumeRfqMissing) return
+        if (resumeSession.status !== 'awaiting_rfq' && resumeSession.status !== 'awaiting_constraints') {
+            // Session has already moved past setup — don't hijack the wizard,
+            // bounce the user to the session detail page instead.
+            toast('This session is already set up — taking you to its detail page.')
+            router.replace(`/user/negotiation/${resumeSession.id}`)
+            return
+        }
+        setSessionId(resumeSession.id)
+        setTitle(resumeSession.title || '')
+        setMinResponses(resumeSession.min_responses_required || 1)
+        const supplierIds = Array.from(new Set(resumeNegotiations.map(n => n.supplier_id)))
+        if (supplierIds.length > 0) setSelectedSuppliers(supplierIds)
+        if (resumeRfq) {
+            setUploadedText(resumeRfq.description || `[Uploaded file: ${resumeRfq.draft_email?.original_filename || 'saved RFQ'}]`)
+            setSavedRfqFilename(resumeRfq.draft_email?.original_filename || 'Saved RFQ')
+            const savedExtraction = resumeRfq.draft_email?.setup_state?.extraction_result ?? null
+            if (savedExtraction) {
+                setExtraction(savedExtraction)
+                setFieldValues(buildInitialFieldValues(savedExtraction))
+                setSpecTiers(buildInitialSpecTiers(savedExtraction))
+            }
+            const savedBrief = resumeRfq.draft_email?.setup_state?.brief ?? null
+            if (savedBrief) {
+                setBrief(savedBrief)
+            }
+            if (resumeRfq.line_items?.length) {
+                setLineItems(resumeRfq.line_items.map((li, idx) => ({
+                    line_number: li.line_number ?? idx + 1,
+                    item_name: li.item_name,
+                    description: li.description ?? null,
+                    specification: li.specification ?? null,
+                    quantity: li.quantity ?? null,
+                    unit: li.unit ?? null,
+                    target_price_per_unit: li.target_price_per_unit != null ? Number(li.target_price_per_unit) : null,
+                    max_price_per_unit: li.max_price_per_unit != null ? Number(li.max_price_per_unit) : null,
+                })))
+            }
+            setStep(3)
+            setHasHydratedFromResume(true)
+            toast.success('Resumed saved RFQ draft — review parameters and activate when ready.')
+            return
+        }
+
+        setStep(resumeSession.status === 'awaiting_rfq' ? 2 : 3)
+        setHasHydratedFromResume(true)
+        toast.success(
+            resumeSession.status === 'awaiting_rfq'
+                ? 'Resumed where you left off — upload your RFQ to continue.'
+                : 'Resumed saved setup — confirm your negotiation parameters and activate when ready.',
+        )
+    }, [hasHydratedFromResume, resumeSessionId, resumeSession, resumeNegotiations, resumeRfq, resumeRfqIsError, resumeRfqError, router])
 
     const toggleSupplier = (id: string) =>
         setSelectedSuppliers(prev => {
@@ -222,6 +504,27 @@ const NegotiationForm = () => {
         if (minResponses > selectedSuppliers.length) {
             return toast.error('Minimum responses cannot exceed the number of selected suppliers')
         }
+        if (sessionId) {
+            try {
+                const currentSupplierIds = new Set((resumeNegotiations ?? []).map(n => n.supplier_id))
+                const selectedSupplierIds = new Set(selectedSuppliers)
+                const toAdd = selectedSuppliers.filter(id => !currentSupplierIds.has(id))
+                const toRemove = Array.from(currentSupplierIds).filter(id => !selectedSupplierIds.has(id))
+
+                if (toAdd.length > 0) {
+                    await addSuppliersToSession.mutateAsync({ id: sessionId, supplier_ids: toAdd })
+                }
+                for (const supplierId of toRemove) {
+                    await removeSupplierFromSession.mutateAsync({ id: sessionId, supplier_id: supplierId })
+                }
+                await refetchResumeNegotiations()
+                setStep(2)
+                return
+            } catch (err: any) {
+                toast.error(getApiError(err, 'Failed to update suppliers for this draft session'))
+                return
+            }
+        }
         try {
             const session = await createSession.mutateAsync({
                 title,
@@ -240,12 +543,28 @@ const NegotiationForm = () => {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
-        if (!['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'].includes(file.type)) {
-            toast.error('Please upload a PDF, DOCX, or TXT file')
+        setExtractionFieldError(null)
+        const allowedMimeTypes = [
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'text/plain',
+            'text/csv',
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'image/png',
+            'image/jpeg',
+            'image/webp',
+            'image/tiff',
+        ]
+        const allowedExtensions = /\.(pdf|docx|txt|csv|xls|xlsx|png|jpe?g|webp|tiff?)$/i
+        const typeOk = allowedMimeTypes.includes(file.type)
+        const extOk = allowedExtensions.test(file.name)
+        if (!typeOk && !extOk) {
+            toast.error('Please upload a PDF, DOCX, TXT, CSV, XLS/XLSX, or image file (PNG/JPG/WEBP/TIFF)')
             return
         }
         setUploadedFile(file)
-        if (file.type === 'text/plain') {
+        if (file.type === 'text/plain' || /\.txt$/i.test(file.name)) {
             const reader = new FileReader()
             reader.onload = e => setUploadedText((e.target?.result as string) || '')
             reader.readAsText(file)
@@ -255,49 +574,45 @@ const NegotiationForm = () => {
     }
 
     // ── Step 2 → 3: extract fields ─────────────────────────────────────────
+    const fileToBase64 = (file: File) =>
+        new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = e => {
+                const result = e.target?.result as string
+                resolve(result.includes(',') ? result.split(',')[1] : result)
+            }
+            reader.onerror = reject
+            reader.readAsDataURL(file)
+        })
+
     const handleContinueToStep3 = async () => {
         if (!sessionId) return
 
-        if (rfqInputMode === 'write' && !writeContent.trim())
-            return toast.error('Write your RFQ content before continuing')
-        if (rfqInputMode === 'upload' && !uploadedFile)
-            return toast.error('Please upload a file first')
+        if (!uploadedFile) return toast.error('Please upload your RFQ document first')
+        if (step2Processing) return
 
+        setStep2Processing(true)
+        setStep2ProcessingLabel('Analysing RFQ…')
         try {
-            const result = rfqInputMode === 'write'
-                ? await extractRFQ.mutateAsync({ sessionId, content: writeContent })
-                : await extractRFQFile.mutateAsync({ sessionId, file: uploadedFile! })
+            const result = await extractRFQFile.mutateAsync({ sessionId, file: uploadedFile })
+            setStep2ProcessingLabel('Checking required RFQ fields…')
             // Store extracted text so we can pass it to createRFQ in the next step
             // (the backend extracted the text; we use fields to reconstruct a summary)
-            const fieldSummary = result.fields
-                .filter(f => f.found && f.value != null)
-                .map(f => `${f.label}: ${f.value}${f.unit ? ' ' + f.unit : ''}`)
-                .join('\n')
-            const lineItemSummary = result.line_items.length > 0
-                ? '\n\nItems:\n' + result.line_items.map(li =>
-                    `${li.line_number}. ${li.item_name}${li.quantity ? ' — Qty: ' + li.quantity : ''}${li.unit ? ' ' + li.unit : ''}`
-                ).join('\n')
-                : ''
-            setUploadedText(
-                rfqInputMode === 'write'
-                    ? writeContent
-                    : (fieldSummary + lineItemSummary || `[Uploaded file: ${uploadedFile!.name}]`)
-            )
+            const sourceText = uploadedFile.name
+            setUploadedText(sourceText)
 
             setExtraction(result)
             // Seed fieldValues from extracted values (for the Procurement Requirements display)
-            const initial: Record<string, string> = {}
-            result.fields.forEach(f => {
-                if (f.value !== null && f.value !== undefined) {
-                    initial[f.key] = String(f.value)
-                }
-            })
+            const initial = buildInitialFieldValues(result)
             setFieldValues(initial)
+            const requiredFieldError = validateRequiredRfqFields(result, initial)
+            if (requiredFieldError) {
+                setExtractionFieldError(requiredFieldError)
+                toast.error('Your RFQ is missing required supplier-facing fields')
+                return
+            }
             // Default all qualitative spec tiers to 'flexible'
-            const initialTiers: Record<string, 'hard' | 'flexible'> = {}
-            result.fields.filter(f => !BRIEF_FIELD_KEYS.has(f.key)).forEach(f => {
-                initialTiers[f.key] = 'flexible'
-            })
+            const initialTiers = buildInitialSpecTiers(result)
             setSpecTiers(initialTiers)
             // Seed line items from extraction (multi-item RFQs)
             if (result.line_items && result.line_items.length > 0) {
@@ -315,13 +630,67 @@ const NegotiationForm = () => {
                 setLineItems([])
             }
 
-            // Extract negotiation brief — non-blocking. Merges AI tier+leverage into
-            // the default brief cards (which are always shown with empty values).
-            if (sessionId) {
+            const extractedLineItems = result.line_items && result.line_items.length > 0
+                ? result.line_items.map((li, idx) => ({
+                    line_number: li.line_number ?? idx + 1,
+                    item_name: li.item_name,
+                    description: li.description ?? null,
+                    specification: li.specification ?? null,
+                    quantity: li.quantity ?? null,
+                    unit: li.unit ?? null,
+                    target_price_per_unit: null,
+                    max_price_per_unit: null,
+                }))
+                : []
+
+            let savedRfqData: any = null
+            try {
+                setStep2ProcessingLabel('Saving RFQ draft…')
+                const originalFileB64 = await fileToBase64(uploadedFile)
+                const documentGoverningFields = buildDocumentGoverningFields(result, initial)
+                savedRfqData = await createRFQ.mutateAsync({
+                    sessionId,
+                    data: {
+                        item_name: title,
+                        response_deadline: documentGoverningFields?.response_deadline,
+                        line_items: extractedLineItems.length > 0 ? extractedLineItems : undefined,
+                        original_file_b64: originalFileB64,
+                        original_filename: uploadedFile.name,
+                        document_governing_fields: documentGoverningFields,
+                        extraction_result: result,
+                    },
+                })
+                setSavedRfqFilename(uploadedFile.name)
+                toast.success('RFQ draft saved. You can leave and resume without reuploading.')
+            } catch (saveErr: any) {
+                toast.error(getApiError(saveErr, 'RFQ was extracted, but saving the draft failed'))
+                return
+            }
+
+            // The backend extracts and persists the brief atomically with the RFQ save.
+            // Read it from the response; fall back to a separate AI call only if it's absent.
+            const persistedBrief = savedRfqData?.draft_email?.setup_state?.brief ?? null
+            if (persistedBrief) {
+                setBrief(prev => ({
+                    ...prev,
+                    procurement_type: persistedBrief.procurement_type ?? prev.procurement_type,
+                    parameters: prev.parameters.map(prevParam => {
+                        const aiParam = (persistedBrief.parameters ?? []).find((p: any) => p.key === prevParam.key)
+                        if (!aiParam) return prevParam
+                        return {
+                            ...prevParam,
+                            tier: aiParam.tier,
+                            leverage_rule: aiParam.leverage_rule ?? prevParam.leverage_rule,
+                            extracted_value: aiParam.extracted_value,
+                            target_value: prevParam.target_value ?? aiParam.target_value,
+                            boundary_value: prevParam.boundary_value ?? aiParam.boundary_value,
+                        }
+                    }),
+                }))
+            } else if (sessionId) {
+                // Brief not in response (server-side extraction failed) — fall back to separate call.
                 extractBrief.mutateAsync({ sessionId, extractionResult: result })
                     .then(aiBreef => {
-                        // Merge AI tier + leverage into our 2-param Brief (unit_price, quantity).
-                        // Delivery and payment are now qualitative specs — ignore those AI params.
                         setBrief(prev => ({
                             ...prev,
                             procurement_type: aiBreef.procurement_type,
@@ -333,7 +702,6 @@ const NegotiationForm = () => {
                                     tier: aiParam.tier,
                                     leverage_rule: aiParam.leverage_rule ?? prevParam.leverage_rule,
                                     extracted_value: aiParam.extracted_value,
-                                    // Preserve user edits; fall back to AI pre-filled values
                                     target_value: prevParam.target_value ?? aiParam.target_value,
                                     boundary_value: prevParam.boundary_value ?? aiParam.boundary_value,
                                 }
@@ -343,22 +711,19 @@ const NegotiationForm = () => {
                     .catch(() => { /* AI failed — user fills manually, default cards already shown */ })
             }
 
+            setStep2ProcessingLabel('Preparing confirmation step…')
             setStep(3)
         } catch (err: any) {
             const status = err?.response?.status
 
             if (status === 422 || status === 400) {
-                // File could not be read — hard block, user must fix the file or switch to Write tab
-                toast.error(getApiError(err))
+                setExtractionFieldError(getApiError(err))
                 return
             }
 
-            // AI extraction failed (5xx, timeout, etc.) — non-blocking, proceed with empty fields
-            toast.warning(getApiError(err, 'AI extraction failed — you can fill in the fields manually'))
-            setExtraction({ is_rfq: true, is_rfq_confidence: 0.5, procurement_type: 'other', fields: [], line_items: [], warning: null })
-            setFieldValues({})
-            setLineItems([])
-            setStep(3)
+            toast.error(getApiError(err, 'AI extraction failed. Please retry or upload a corrected RFQ document.'))
+        } finally {
+            setStep2Processing(false)
         }
     }
 
@@ -378,6 +743,14 @@ const NegotiationForm = () => {
 
     const handleActivate = async () => {
         if (!sessionId) return
+        if (resumeSession && resumeSession.status !== 'awaiting_rfq' && resumeSession.status !== 'awaiting_constraints') {
+            toast.success('This session is already set up — taking you to its detail page.')
+            router.replace(`/user/negotiation/${sessionId}`)
+            return
+        }
+        const documentGoverningFields =
+            buildDocumentGoverningFields(extraction, fieldValues)
+            || normalizeStoredDocumentGoverningFields(resumeRfq?.draft_email?.document_governing_fields)
 
         // Single-item: require price target + ceiling from brief cards
         if (!isMultiItem) {
@@ -387,46 +760,31 @@ const NegotiationForm = () => {
                 return toast.error('Enter your target price and max price ceiling in the Negotiation Brief above')
             }
         }
-
-        const extractedSourceText = uploadedText || "[Uploaded file]"
-
-        // Convert uploaded file to base64 so backend can attach the original
-        let originalFileB64: string | undefined
-        let originalFilename: string | undefined
-        if (uploadedFile && uploadedFile.type !== 'text/plain') {
-            try {
-                originalFileB64 = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader()
-                    reader.onload = e => {
-                        const result = e.target?.result as string
-                        // strip "data:...;base64," prefix
-                        resolve(result.split(',')[1])
-                    }
-                    reader.onerror = reject
-                    reader.readAsDataURL(uploadedFile)
-                })
-                originalFilename = uploadedFile.name
-            } catch {
-                // non-fatal — fall back to generated PDF
-            }
+        if (!documentGoverningFields?.currency) {
+            return toast.error('Your uploaded RFQ must clearly state the pricing currency before this session can be activated')
+        }
+        if (!documentGoverningFields?.response_deadline) {
+            return toast.error('Your uploaded RFQ must clearly state the submission deadline before this session can be activated')
+        }
+        if (!documentGoverningFields?.delivery_location) {
+            return toast.error('Your uploaded RFQ must clearly state the delivery location before this session can be activated')
         }
 
         try {
-            // 1. Create RFQ — skip if one already exists (idempotent retry)
-            try {
-                await createRFQ.mutateAsync({
-                    sessionId,
-                    data: {
-                        item_name: title,
-                        content: extractedSourceText,
-                        line_items: isMultiItem ? lineItems : undefined,
-                        original_file_b64: originalFileB64,
-                        original_filename: originalFilename,
-                    },
-                })
-            } catch (rfqErr: any) {
-                if (rfqErr?.response?.status !== 409) throw rfqErr
-            }
+            // Persist any final edits made after extraction before constraints activate
+            // the session. The backend preserves the original uploaded RFQ attachment
+            // when no replacement file is supplied here.
+            await createRFQ.mutateAsync({
+                sessionId,
+                data: {
+                    item_name: title,
+                    content: uploadedText || `[Uploaded file: ${savedRfqFilename || 'RFQ'}]`,
+                    description: uploadedText || `[Uploaded file: ${savedRfqFilename || 'RFQ'}]`,
+                    response_deadline: documentGoverningFields.response_deadline,
+                    line_items: isMultiItem ? lineItems : undefined,
+                    document_governing_fields: documentGoverningFields,
+                },
+            })
 
             // Build qualitative spec requirements from fieldValues + tiers (exclude Brief card keys)
             const specRequirements: SpecRequirement[] = (extraction?.fields ?? [])
@@ -500,7 +858,7 @@ const NegotiationForm = () => {
         setLineItems(prev => prev.filter((_, i) => i !== idx).map((li, i) => ({ ...li, line_number: i + 1 })))
 
     const isPending = createSession.isPending
-    const isExtracting = extractRFQ.isPending || extractRFQFile.isPending
+    const isExtracting = step2Processing || extractRFQFile.isPending || createRFQ.isPending
     const isExtractingBrief = extractBrief.isPending
     const isActivating = createRFQ.isPending || setConstraints.isPending
 
@@ -548,7 +906,150 @@ const NegotiationForm = () => {
         )
         : briefReady)
 
+    // ── Session context strip ──────────────────────────────────────────────
+    // Visible on step 2 and step 3 so the buyer always sees the session they're
+    // configuring — especially important on the Resume Setup flow where step 1
+    // was skipped. Without it the wizard feels like it lost the buyer's context.
+    const selectedSupplierObjects = useMemo(() => {
+        if (!suppliers) return []
+        return suppliers.filter(s => selectedSuppliers.includes(s.id))
+    }, [suppliers, selectedSuppliers])
+
+    // IDs that are still in `selectedSuppliers` but no longer exist in the buyer's
+    // ecosystem — typically because the supplier was deleted after this session
+    // was started. Tracked separately so step 1 can show them and allow pruning.
+    const missingSupplierIds = useMemo(() => {
+        if (loadingSuppliers || !suppliers) return [] as string[]
+        const known = new Set(suppliers.map(s => s.id))
+        return selectedSuppliers.filter(id => !known.has(id))
+    }, [loadingSuppliers, suppliers, selectedSuppliers])
+
+    const pruneMissingSuppliers = () => {
+        if (missingSupplierIds.length === 0) return
+        setSelectedSuppliers(prev => prev.filter(id => !missingSupplierIds.includes(id)))
+        toast.success(
+            missingSupplierIds.length === 1
+                ? 'Removed 1 unavailable supplier from this session'
+                : `Removed ${missingSupplierIds.length} unavailable suppliers from this session`,
+        )
+    }
+
+    const SessionContextStrip = () => {
+        if (!sessionId) return null
+        const supplierNames = selectedSupplierObjects.map(s => s.name).filter(Boolean)
+        const knownCount = supplierNames.length
+        const missingCount = missingSupplierIds.length
+        // Only show "loading…" while the ecosystem query is genuinely in flight.
+        const stillLoading = loadingSuppliers || !suppliers
+        const detailLine = (() => {
+            if (selectedSuppliers.length === 0) return 'No suppliers selected — go back to step 1'
+            if (stillLoading) return 'Loading supplier details…'
+            if (knownCount === 0 && missingCount > 0) {
+                return `${missingCount} supplier${missingCount === 1 ? '' : 's'} no longer in your ecosystem`
+            }
+            const head = supplierNames.slice(0, 3).join(', ')
+            const more = knownCount > 3 ? ` +${knownCount - 3} more` : ''
+            const missing = missingCount > 0 ? ` · ${missingCount} unavailable` : ''
+            return `${head}${more}${missing}`
+        })()
+        return (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 mb-4">
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-gray-500">Session</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{title || 'Untitled session'}</p>
+                    </div>
+                    <div className="min-w-0 text-right">
+                        <p className="text-[10px] uppercase tracking-wide font-semibold text-gray-500">
+                            {selectedSuppliers.length} supplier{selectedSuppliers.length === 1 ? '' : 's'} selected
+                        </p>
+                        <p className={`text-xs truncate max-w-md ${missingCount > 0 ? 'text-amber-700' : 'text-gray-700'}`}>
+                            {detailLine}
+                        </p>
+                    </div>
+                </div>
+                {missingCount > 0 && (
+                    <div className="mt-2 pt-2 border-t border-amber-200 flex items-center justify-between gap-2 flex-wrap">
+                        <p className="text-[11px] text-amber-700">
+                            Some suppliers selected for this session aren't in your ecosystem anymore. Remove them before continuing.
+                        </p>
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-amber-300 text-amber-800 hover:bg-amber-100 h-7 text-xs"
+                            onClick={pruneMissingSuppliers}
+                        >
+                            Remove {missingCount} unavailable
+                        </Button>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     // ── Render ──────────────────────────────────────────────────────────────
+
+    // Brief loading gate while we hydrate from ?session=<id>. Without this the
+    // user sees the empty step-1 form flash before being jumped to step 2.
+    if (
+        resumeSessionId
+        && !hasHydratedFromResume
+        && (
+            resumeSessionIsError
+            || resumeNegotiationsIsError
+            || (resumeRfqIsError && (resumeRfqError as any)?.response?.status !== 404)
+        )
+    ) {
+        const error = resumeSessionError || resumeNegotiationsError || resumeRfqError
+        return (
+            <div className="w-full max-w-2xl mx-auto py-16">
+                <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                        <div className="flex-1">
+                            <h2 className="text-base font-semibold text-red-900">Could not load this negotiation session</h2>
+                            <p className="text-sm text-red-700 mt-1">
+                                {getApiError(error, 'The session setup data failed to load. This is usually caused by a backend error or expired session state.')}
+                            </p>
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    className="bg-red-600 hover:bg-red-700 text-white"
+                                    onClick={() => {
+                                        refetchResumeSession()
+                                        refetchResumeNegotiations()
+                                    }}
+                                >
+                                    Retry
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-200 text-red-700 hover:bg-red-100"
+                                    onClick={() => router.push('/user/negotiation')}
+                                >
+                                    Back to Negotiations
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
+    if (resumeSessionId && !hasHydratedFromResume) {
+        return (
+            <div className="w-full flex items-center justify-center py-24">
+                <div className="flex items-center gap-3 text-sm text-gray-500">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading your session…
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="w-full">
@@ -604,6 +1105,29 @@ const NegotiationForm = () => {
                                 : `${selectedSuppliers.length} supplier${selectedSuppliers.length !== 1 ? 's' : ''} selected`}
                         </p>
 
+                        {missingSupplierIds.length > 0 && (
+                            <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                                <div className="flex items-start justify-between gap-2 flex-wrap">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-amber-800">
+                                            {missingSupplierIds.length} selected supplier{missingSupplierIds.length === 1 ? '' : 's'} no longer in your ecosystem
+                                        </p>
+                                        <p className="text-[11px] text-amber-700 mt-0.5">
+                                            They were deleted from <Link href="/user/ecosystem/suppliers" className="underline">Ecosystem → Suppliers</Link> after this session was started.
+                                            They won't receive the RFQ. Remove them before continuing.
+                                        </p>
+                                    </div>
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="border-amber-300 text-amber-800 hover:bg-amber-100 h-7 text-xs shrink-0"
+                                        onClick={pruneMissingSuppliers}
+                                    >
+                                        Remove {missingSupplierIds.length}
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                         {loadingSuppliers ? (
                             <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
                                 <Loader2 className="h-4 w-4 animate-spin" /> Loading suppliers…
@@ -662,8 +1186,9 @@ const NegotiationForm = () => {
                     <div className="flex justify-end">
                         <Button
                             onClick={handleContinueToStep2}
-                            disabled={isPending || !title.trim() || selectedSuppliers.length === 0 || minResponsesTooHigh}
-                            className="bg-[#1A4A7A] hover:bg-[#1A4A7A]/90 gap-2"
+                            disabled={isPending || !title.trim() || selectedSuppliers.length === 0 || minResponsesTooHigh || missingSupplierIds.length > 0}
+                            className="bg-primary hover:bg-primary/90 gap-2"
+                            title={missingSupplierIds.length > 0 ? 'Remove unavailable suppliers above before continuing' : undefined}
                         >
                             {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                             {isPending ? 'Creating session…' : 'Continue'}
@@ -673,39 +1198,21 @@ const NegotiationForm = () => {
                 </div>
             )}
 
-            {/* ── STEP 2: Write or upload RFQ ── */}
+            {/* ── STEP 2: Upload RFQ ── */}
             {step === 2 && (
                 <div className="space-y-5">
+                    <SessionContextStrip />
                     <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-1">Your RFQ</h2>
+                        <h2 className="text-lg font-semibold text-gray-900 mb-1">Upload your RFQ</h2>
                         <p className="text-sm text-gray-500 mb-5">
-                            This is the document your suppliers will receive. Write it directly or upload an existing one.
+                            Upload the branded RFQ document your suppliers should receive. Nexotropi will send this original file unchanged and only extract negotiation parameters from it.
                         </p>
-
-                        {/* Write / Upload tab switcher */}
-                        <div className="flex gap-1 mb-5 p-1 bg-gray-100 rounded-lg w-fit">
-                            {(['upload', 'write'] as const).map(mode => (
-                                <button
-                                    key={mode}
-                                    type="button"
-                                    onClick={() => setRfqInputMode(mode)}
-                                    className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${rfqInputMode === mode ? 'bg-white text-[#1A4A7A] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-                                >
-                                    {mode === 'upload' ? 'Upload file' : 'Write'}
-                                </button>
-                            ))}
-                        </div>
 
                         {/* Required-fields guide */}
                         <div className="mb-5 bg-blue-50 border border-blue-100 rounded-lg p-4">
-                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Your RFQ should include these details</p>
+                            <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Before upload, confirm the RFQ includes these details</p>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {[
-                                    { label: 'Quantity / Scope', hint: 'How many units or what volume of service' },
-                                    { label: 'Delivery lead time or date', hint: 'When goods/services must be delivered' },
-                                    { label: 'Response deadline', hint: 'When suppliers must reply by' },
-                                    { label: 'Delivery location', hint: 'Where goods should be shipped to' },
-                                ].map(f => (
+                                {REQUIRED_RFQ_FIELDS.map(f => (
                                     <div key={f.label} className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-blue-400 mt-1.5 shrink-0" />
                                         <div>
@@ -716,76 +1223,86 @@ const NegotiationForm = () => {
                                 ))}
                             </div>
                             <p className="text-xs text-blue-500 mt-3">
-                                The AI will scan your RFQ for these fields and alert you to anything missing before you can activate the session.
+                                The AI will scan the uploaded document for these fields and alert you to anything missing before you can activate the session.
                             </p>
                         </div>
 
-                        {rfqInputMode === 'upload' ? (
-                            <div className="space-y-4">
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-[#1A4A7A] hover:bg-blue-50/30 transition-colors"
-                                >
-                                    {uploadedFile ? (
-                                        <div className="flex items-center justify-center gap-3">
-                                            <FileText className="h-8 w-8 text-[#1A4A7A]" />
-                                            <div className="text-left">
-                                                <p className="font-medium text-gray-900">{uploadedFile.name}</p>
-                                                <p className="text-xs text-gray-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
-                                            </div>
-                                            <button
-                                                type="button"
-                                                onClick={e => { e.stopPropagation(); setUploadedFile(null); setUploadedText('') }}
-                                                className="ml-2 text-gray-400 hover:text-red-500"
-                                            >
-                                                <X className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <Upload className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-                                            <p className="text-gray-600 font-medium">Click to upload your RFQ</p>
-                                            <p className="text-xs text-gray-400 mt-1">PDF, DOCX, or TXT — max 10MB</p>
-                                        </>
-                                    )}
+                        <div className="space-y-4">
+                            {extractionFieldError && (
+                                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                                    <p className="text-sm font-semibold text-red-700 mb-1">Required fields missing from your RFQ</p>
+                                    <p className="text-sm text-red-700">{extractionFieldError}</p>
+                                    <p className="text-xs text-red-500 mt-2">Add the missing fields to your RFQ document and upload it again.</p>
                                 </div>
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".pdf,.docx,.txt"
-                                    className="hidden"
-                                    onChange={handleFileChange}
-                                />
-                                <p className="text-xs text-gray-400">
-                                    The AI will read your document to extract negotiation parameters. Your original file will be sent to suppliers unchanged.
-                                </p>
+                            )}
+                            {savedRfqFilename && !uploadedFile && (
+                                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                                    Saved draft RFQ: <span className="font-semibold">{savedRfqFilename}</span>. Upload a replacement file only if you want to rerun extraction.
+                                </div>
+                            )}
+                            <div
+                                onClick={() => fileInputRef.current?.click()}
+                                className="border-2 border-dashed border-gray-300 rounded-lg p-10 text-center cursor-pointer hover:border-primary hover:bg-blue-50/30 transition-colors"
+                            >
+                                {uploadedFile ? (
+                                    <div className="flex items-center justify-center gap-3">
+                                        <FileText className="h-8 w-8 text-primary" />
+                                        <div className="text-left">
+                                            <p className="font-medium text-gray-900">{uploadedFile.name}</p>
+                                            <p className="text-xs text-gray-500">{(uploadedFile.size / 1024).toFixed(1)} KB</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={e => {
+                                                e.stopPropagation()
+                                                setUploadedFile(null)
+                                                setUploadedText('')
+                                                setExtractionFieldError(null)
+                                            }}
+                                            className="ml-2 text-gray-400 hover:text-red-500"
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <Upload className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+                                        <p className="text-gray-600 font-medium">Click to upload your branded RFQ</p>
+                                        <p className="text-xs text-gray-400 mt-1">PDF, DOCX, TXT, CSV, XLS/XLSX, or image (PNG/JPG/WEBP/TIFF) — max 10MB. Scanned PDFs and photos are OCR'd automatically.</p>
+                                    </>
+                                )}
                             </div>
-                        ) : (
-                            <div className="space-y-2">
-                                <textarea
-                                    value={writeContent}
-                                    onChange={e => setWriteContent(e.target.value)}
-                                    placeholder={`Write your RFQ here. For example:\n\nWe require 500 units of industrial-grade steel pipes (Schedule 40, 2-inch diameter).\n\nDelivery location: Lagos, Nigeria\nRequired delivery: Within 30 days of PO\nResponse deadline: 5 May 2026\nPayment terms: Net 30\n\nPlease quote unit price, total price, and confirm availability.`}
-                                    rows={14}
-                                    className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1A4A7A]/30 focus:border-[#1A4A7A] resize-y"
-                                />
-                                <p className="text-xs text-gray-400">
-                                    The AI will extract negotiation parameters from your text. Only this content will be sent to suppliers — not your private targets.
-                                </p>
-                            </div>
-                        )}
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf,.docx,.txt,.csv,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.tif,.tiff,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,image/png,image/jpeg,image/webp,image/tiff"
+                                className="hidden"
+                                onChange={handleFileChange}
+                            />
+                            <p className="text-xs text-gray-400">
+                                The AI reads the document to extract negotiation parameters. Suppliers receive your uploaded RFQ file, not a generated text version.
+                            </p>
+                        </div>
                     </div>
 
                     <div className="flex justify-between">
                         <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
                         <Button
-                            onClick={handleContinueToStep3}
+                            onClick={() => {
+                                if (savedRfqFilename && !uploadedFile) {
+                                    setStep(3)
+                                    return
+                                }
+                                handleContinueToStep3()
+                            }}
                             disabled={isExtracting}
-                            className="bg-[#1A4A7A] hover:bg-[#1A4A7A]/90 gap-2"
+                            className="bg-primary hover:bg-primary/90 gap-2"
                         >
                             {isExtracting
-                                ? <><Loader2 className="h-4 w-4 animate-spin" /> Analysing RFQ…</>
-                                : <>Continue <ChevronRight className="h-4 w-4" /></>}
+                                ? <><Loader2 className="h-4 w-4 animate-spin" /> {step2ProcessingLabel}</>
+                                : savedRfqFilename && !uploadedFile
+                                    ? <>Saved draft ready <ChevronRight className="h-4 w-4" /></>
+                                    : <>Continue <ChevronRight className="h-4 w-4" /></>}
                         </Button>
                     </div>
                 </div>
@@ -794,273 +1311,301 @@ const NegotiationForm = () => {
             {/* ── STEP 3: Confirmation + Parameters ── */}
             {step === 3 && (
                 <div className="space-y-5">
-                    {/* ── Negotiation Parameters — numeric Brief cards + qualitative specs ── */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                        <div className="flex items-center justify-between mb-1">
-                            <h2 className="text-lg font-semibold text-gray-900">Negotiation Parameters</h2>
+                    <SessionContextStrip />
+
+                    {/* ── SECTION A: What suppliers will see ── */}
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 bg-blue-50 border-b border-blue-100">
+                            <h2 className="text-base font-semibold text-blue-900">What suppliers will see</h2>
+                            <p className="text-xs text-blue-600 mt-0.5">
+                                These terms come from your RFQ and will be visible to suppliers.
+                                Set each as <strong>Hard</strong> (AI escalates if breached) or <strong>Flexible</strong> (AI can negotiate).
+                            </p>
+                        </div>
+                        <div className="px-6 py-5">
+                            <div className="flex flex-wrap gap-2 text-[11px] mb-4">
+                                <span className="border rounded-full px-2.5 py-0.5 font-semibold bg-green-50 text-green-700 border-green-200">Flexible — AI can concede here</span>
+                                <span className="border rounded-full px-2.5 py-0.5 font-semibold bg-red-50 text-red-700 border-red-200">Hard — AI escalates or rejects if breached</span>
+                            </div>
+                            {(() => {
+                                const specFields = (extraction?.fields ?? []).filter(f => !BRIEF_FIELD_KEYS.has(f.key))
+                                if (!specFields.length) return (
+                                    <p className="text-sm text-gray-400 py-2">
+                                        No specific terms were extracted from your RFQ. You can activate without them, or go back and add delivery dates, payment terms, or other requirements to your RFQ.
+                                    </p>
+                                )
+                                return specFields.map(f => (
+                                    <FieldRow
+                                        key={f.key}
+                                        field={{ ...f, value: fieldValues[f.key] ?? f.value }}
+                                        tier={specTiers[f.key] ?? 'flexible'}
+                                        onTierChange={updateSpecTier}
+                                        onChange={updateFieldValue}
+                                    />
+                                ))
+                            })()}
+                        </div>
+                    </div>
+
+                    {/* ── SECTION B: Your private AI rules ── */}
+                    <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                            <div>
+                                <h2 className="text-base font-semibold text-gray-900">Your private AI rules</h2>
+                                <p className="text-xs text-gray-500 mt-0.5">Never sent to suppliers. These guide what the AI can and cannot agree to.</p>
+                            </div>
                             {isExtractingBrief && (
-                                <div className="flex items-center gap-1.5 text-xs text-blue-500">
+                                <div className="flex items-center gap-1.5 text-xs text-blue-500 shrink-0">
                                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> AI filling in values…
                                 </div>
                             )}
                         </div>
-                        <p className="text-sm text-gray-500 mb-3">
-                            {!isMultiItem
-                                ? 'Set your private price and quantity targets, then configure Hard or Flexible tiers on all extracted specs.'
-                                : 'Configure Hard or Flexible tiers on all extracted specs. Price and quantity are set per line item above.'}
-                        </p>
-                        <div className="flex flex-wrap gap-2 text-[11px] mb-5">
-                            <span className="border rounded-full px-2.5 py-0.5 font-semibold bg-green-50 text-green-700 border-green-200">Flexible — AI can concede here</span>
-                            <span className="border rounded-full px-2.5 py-0.5 font-semibold bg-red-50 text-red-700 border-red-200">Hard — AI escalates or rejects if breached</span>
-                        </div>
+                        <div className="px-6 py-5 space-y-6">
 
-                        {/* Currency */}
-                        <div className="mb-5">
-                            <Label>Currency</Label>
-                            <select value={currency} onChange={e => setCurrency(e.target.value)} className="mt-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
-                                {['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NGN'].map(c => <option key={c}>{c}</option>)}
-                            </select>
-                        </div>
-
-                        {/* Numeric targets — price & quantity only, single-item sessions */}
-                        {!isMultiItem && (
-                            <div className="mb-1">
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                                    Price & Quantity targets
-                                    <span className="ml-2 font-normal normal-case text-gray-400">— your private negotiation limits, never shared with suppliers</span>
-                                </p>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {brief.parameters.map(p => {
-                                        const globalIdx = brief.parameters.findIndex(x => x.key === p.key)
-                                        return (
-                                            <NegotiationBriefCard
-                                                key={p.key}
-                                                param={p}
-                                                currency={p.key === 'unit_price' ? currency : undefined}
-                                                onChange={updated => setBrief(prev => ({
-                                                    ...prev,
-                                                    parameters: prev.parameters.map((x, j) => j === globalIdx ? updated : x),
-                                                }))}
-                                            />
-                                        )
-                                    })}
-                                </div>
-                                {errors.briefPriceTarget  && <p className="text-xs text-red-500 mt-2">{errors.briefPriceTarget}</p>}
-                                {errors.briefPriceCeiling && <p className="text-xs text-red-500 mt-1">{errors.briefPriceCeiling}</p>}
+                            {/* Currency */}
+                            <div>
+                                <Label>Currency</Label>
+                                <select value={currency} onChange={e => { setCurrencyTouched(true); setCurrency(e.target.value) }} className="mt-1 border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                    {['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NGN'].map(c => <option key={c}>{c}</option>)}
+                                </select>
                             </div>
-                        )}
 
-                        {/* Multi-item pricing targets */}
-                        {isMultiItem && (
-                            <div className="mb-6">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <div className="w-1 h-5 bg-[#1A4A7A] rounded-full shrink-0" />
-                                    <h3 className="text-sm font-semibold text-gray-900">Negotiation Targets</h3>
-                                    <span className="text-xs text-gray-400">— the AI negotiates price within these bounds per line item</span>
-                                </div>
-                                <div className="overflow-x-auto">
-                                    <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
-                                        <thead>
-                                            <tr className="bg-[#f0f5fb] text-xs text-gray-500 uppercase tracking-wide">
-                                                <th className="px-3 py-2 text-left font-medium">#</th>
-                                                <th className="px-3 py-2 text-left font-medium">Item</th>
-                                                <th className="px-3 py-2 text-left font-medium">Qty</th>
-                                                <th className="px-3 py-2 text-left font-medium">Unit</th>
-                                                <th className="px-3 py-2 text-left font-medium">Target $/unit</th>
-                                                <th className="px-3 py-2 text-left font-medium">Max $/unit</th>
-                                                <th className="px-3 py-2 text-left font-medium"></th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {lineItems.map((li, idx) => (
-                                                <tr key={idx} className="border-t border-gray-100">
-                                                    <td className="px-3 py-2 text-gray-400 text-xs">{li.line_number}</td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            value={li.item_name}
-                                                            onChange={e => updateLineItem(idx, 'item_name', e.target.value)}
-                                                            placeholder="Item name"
-                                                            className="h-7 text-xs min-w-[140px]"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            type="number"
-                                                            value={li.quantity ?? ''}
-                                                            onChange={e => updateLineItem(idx, 'quantity', e.target.value ? parseInt(e.target.value) : null)}
-                                                            placeholder="0"
-                                                            className={`h-7 text-xs w-20 ${errors[`lineItem_${idx}_qty`] ? 'border-red-400' : ''}`}
-                                                        />
-                                                        {errors[`lineItem_${idx}_qty`] && <p className="text-xs text-red-500 mt-0.5">{errors[`lineItem_${idx}_qty`]}</p>}
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            value={li.unit ?? ''}
-                                                            onChange={e => updateLineItem(idx, 'unit', e.target.value || null)}
-                                                            placeholder="pcs"
-                                                            className="h-7 text-xs w-20"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={li.target_price_per_unit ?? ''}
-                                                            onChange={e => updateLineItem(idx, 'target_price_per_unit', e.target.value ? parseFloat(e.target.value) : null)}
-                                                            placeholder="0.00"
-                                                            className={`h-7 text-xs w-24 ${errors[`lineItem_${idx}_target`] ? 'border-red-400' : ''}`}
-                                                        />
-                                                        {errors[`lineItem_${idx}_target`] && <p className="text-xs text-red-500 mt-0.5 w-24">{errors[`lineItem_${idx}_target`]}</p>}
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            type="number"
-                                                            step="0.01"
-                                                            value={li.max_price_per_unit ?? ''}
-                                                            onChange={e => updateLineItem(idx, 'max_price_per_unit', e.target.value ? parseFloat(e.target.value) : null)}
-                                                            placeholder="0.00"
-                                                            className="h-7 text-xs w-24"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <button type="button" onClick={() => removeLineItem(idx)} className="text-gray-300 hover:text-red-500 transition-colors">
-                                                            <X className="h-4 w-4" />
-                                                        </button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={addLineItem}
-                                    className="mt-3 text-sm text-[#1A4A7A] hover:underline flex items-center gap-1"
-                                >
-                                    + Add item
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Qualitative specs — extracted from RFQ, visible to suppliers */}
-                        {(() => {
-                            const specFields = (extraction?.fields ?? []).filter(f => !BRIEF_FIELD_KEYS.has(f.key))
-                            if (!specFields.length) return null
-                            return (
-                                <div className="mt-6 pt-5 border-t border-gray-100">
-                                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
-                                        Qualitative specs
-                                        <span className="ml-2 font-normal normal-case text-gray-400">— from your RFQ, suppliers can see these</span>
-                                    </p>
-                                    {specFields.map(f => (
-                                        <FieldRow
-                                            key={f.key}
-                                            field={{ ...f, value: fieldValues[f.key] ?? f.value }}
-                                            tier={specTiers[f.key] ?? 'flexible'}
-                                            onTierChange={updateSpecTier}
-                                            onChange={updateFieldValue}
-                                        />
-                                    ))}
-                                </div>
-                            )
-                        })()}
-                    </div>
-
-                    {/* Strategy & timing settings */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-1">Strategy & Behaviour</h2>
-                        <p className="text-sm text-gray-500 mb-5">How the AI conducts the negotiation.</p>
-
-                        {/* Strategy */}
-                        <div>
-                            <h3 className="text-sm font-semibold text-gray-700 mb-4">Strategy</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {/* Price & quantity — single-item */}
+                            {!isMultiItem && (
                                 <div>
-                                    <Label>Strategy</Label>
-                                    <select value={strategy} onChange={e => setStrategy(e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                                        <option value="aggressive">Aggressive — push hard toward target</option>
-                                        <option value="balanced">Balanced — steady, measured progress</option>
-                                        <option value="conservative">Conservative — preserve relationship</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <Label>Approval Mode</Label>
-                                    <select value={approvalMode} onChange={e => setApprovalMode(e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                                        <option value="auto">Auto — AI sends replies automatically</option>
-                                        <option value="manual">Manual — you approve each reply first</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <Label>Max Rounds (1–20)</Label>
-                                    <Input type="number" min={1} max={20} value={maxRounds} onChange={e => setMaxRounds(parseInt(e.target.value) || 5)} className={`mt-1 ${errors.maxRounds ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
-                                    {errors.maxRounds && <p className="text-xs text-red-500 mt-1">{errors.maxRounds}</p>}
-                                </div>
-                            </div>
-                            <div className="mt-4 flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
-                                <div>
-                                    <p className="text-sm font-medium text-gray-800">Allow Counter Offers</p>
-                                    <p className="text-xs text-gray-400">Let suppliers propose modifications to quantity/terms</p>
-                                </div>
-                                <Switch checked={allowCounterOffers} onCheckedChange={setAllowCounterOffers} />
-                            </div>
-                            {isMultiItem && (
-                                <div className="mt-3 flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-800">Allow Partial Quantity</p>
-                                        <p className="text-xs text-gray-400">If off, any supplier quoting less than the requested quantity pauses for your review.</p>
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Price & Quantity targets</p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {brief.parameters.map(p => {
+                                            const globalIdx = brief.parameters.findIndex(x => x.key === p.key)
+                                            return (
+                                                <NegotiationBriefCard
+                                                    key={p.key}
+                                                    param={p}
+                                                    currency={p.key === 'unit_price' ? currency : undefined}
+                                                    onChange={updated => setBrief(prev => ({
+                                                        ...prev,
+                                                        parameters: prev.parameters.map((x, j) => j === globalIdx ? updated : x),
+                                                    }))}
+                                                />
+                                            )
+                                        })}
                                     </div>
-                                    <Switch checked={allowPartialQuantity} onCheckedChange={setAllowPartialQuantity} />
+                                    {errors.briefPriceTarget  && <p className="text-xs text-red-500 mt-2">{errors.briefPriceTarget}</p>}
+                                    {errors.briefPriceCeiling && <p className="text-xs text-red-500 mt-1">{errors.briefPriceCeiling}</p>}
                                 </div>
                             )}
-                        </div>
 
-                        {/* Auto-accept & timing */}
-                        <div className="border-t border-gray-100 pt-5 mt-5">
-                            <h3 className="text-sm font-semibold text-gray-700 mb-4">Auto-Accept & Timing</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                            {/* Price & quantity — multi-item */}
+                            {isMultiItem && (
                                 <div>
-                                    <Label>{isMultiItem ? 'Total Budget Ceiling (optional)' : 'Auto-Accept Threshold (optional)'}</Label>
-                                    <Input type="number" step="0.01" value={autoAcceptThreshold} onChange={e => setAutoAcceptThreshold(e.target.value)} placeholder={isMultiItem ? 'e.g. 15000.00' : 'e.g. 75.00'} className={`mt-1 ${errors.autoAcceptThreshold ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
-                                    {errors.autoAcceptThreshold
-                                        ? <p className="text-xs text-red-500 mt-1">{errors.autoAcceptThreshold}</p>
-                                        : (
-                                            <p className="text-xs text-gray-400 mt-1">
-                                                {isMultiItem
-                                                    ? 'Reject basket totals above this amount across all quoted line items'
-                                                    : 'Auto-accept if supplier quotes at or below this price — must be ≤ your target price'}
-                                            </p>
-                                        )}
+                                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Price & Quantity targets per line item</p>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm border border-gray-200 rounded-lg overflow-hidden">
+                                            <thead>
+                                                <tr className="bg-[#f0f5fb] text-xs text-gray-500 uppercase tracking-wide">
+                                                    <th className="px-3 py-2 text-left font-medium">#</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Item</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Qty</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Unit</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Target $/unit</th>
+                                                    <th className="px-3 py-2 text-left font-medium">Max $/unit</th>
+                                                    <th className="px-3 py-2 text-left font-medium"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {lineItems.map((li, idx) => (
+                                                    <tr key={idx} className="border-t border-gray-100">
+                                                        <td className="px-3 py-2 text-gray-400 text-xs">{li.line_number}</td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                value={li.item_name}
+                                                                onChange={e => updateLineItem(idx, 'item_name', e.target.value)}
+                                                                placeholder="Item name"
+                                                                className="h-7 text-xs min-w-[140px]"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                value={li.quantity ?? ''}
+                                                                onChange={e => updateLineItem(idx, 'quantity', e.target.value ? parseInt(e.target.value) : null)}
+                                                                placeholder="0"
+                                                                className={`h-7 text-xs w-20 ${errors[`lineItem_${idx}_qty`] ? 'border-red-400' : ''}`}
+                                                            />
+                                                            {errors[`lineItem_${idx}_qty`] && <p className="text-xs text-red-500 mt-0.5">{errors[`lineItem_${idx}_qty`]}</p>}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                value={li.unit ?? ''}
+                                                                onChange={e => updateLineItem(idx, 'unit', e.target.value || null)}
+                                                                placeholder="pcs"
+                                                                className="h-7 text-xs w-20"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={li.target_price_per_unit ?? ''}
+                                                                onChange={e => updateLineItem(idx, 'target_price_per_unit', e.target.value ? parseFloat(e.target.value) : null)}
+                                                                placeholder="0.00"
+                                                                className={`h-7 text-xs w-24 ${errors[`lineItem_${idx}_target`] ? 'border-red-400' : ''}`}
+                                                            />
+                                                            {errors[`lineItem_${idx}_target`] && <p className="text-xs text-red-500 mt-0.5 w-24">{errors[`lineItem_${idx}_target`]}</p>}
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                value={li.max_price_per_unit ?? ''}
+                                                                onChange={e => updateLineItem(idx, 'max_price_per_unit', e.target.value ? parseFloat(e.target.value) : null)}
+                                                                placeholder="0.00"
+                                                                className="h-7 text-xs w-24"
+                                                            />
+                                                        </td>
+                                                        <td className="px-3 py-2">
+                                                            <button type="button" onClick={() => removeLineItem(idx)} className="text-gray-300 hover:text-red-500 transition-colors">
+                                                                <X className="h-4 w-4" />
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={addLineItem}
+                                        className="mt-3 text-sm text-primary hover:underline flex items-center gap-1"
+                                    >
+                                        + Add item
+                                    </button>
                                 </div>
-                                <div>
-                                    <Label>Supplier Timeout (hours)</Label>
-                                    <Input type="number" min={1} value={timeoutHours} onChange={e => setTimeoutHours(parseInt(e.target.value) || 48)} className="mt-1" />
+                            )}
+
+                            {/* Strategy */}
+                            <div className="border-t border-gray-100 pt-5">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Strategy</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <Label>Strategy</Label>
+                                        <select value={strategy} onChange={e => setStrategy(e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                            <option value="aggressive">Aggressive — push hard toward target</option>
+                                            <option value="balanced">Balanced — steady, measured progress</option>
+                                            <option value="conservative">Conservative — preserve relationship</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <Label>Approval Mode</Label>
+                                        <select value={approvalMode} onChange={e => setApprovalMode(e.target.value)} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                            <option value="auto">Auto — AI counteroffers send automatically</option>
+                                            <option value="manual">Manual — review counteroffers before send</option>
+                                        </select>
+                                        <p className="text-xs text-gray-400 mt-1">
+                                            Applies to AI-generated counteroffers. Manual mode lets you edit the outgoing message, price, or quantity before sending.
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <Label>Max Rounds (1–20)</Label>
+                                        <Input type="number" min={1} max={20} value={maxRounds} onChange={e => setMaxRounds(parseInt(e.target.value) || 5)} className={`mt-1 ${errors.maxRounds ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
+                                        {errors.maxRounds && <p className="text-xs text-red-500 mt-1">{errors.maxRounds}</p>}
+                                    </div>
                                 </div>
-                                <div>
-                                    <Label>Late Response Policy</Label>
-                                    <select value={lateSubmissionPolicy} onChange={e => setLateSubmissionPolicy(e.target.value as 'notify_buyer' | 'auto_reject')} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
-                                        <option value="notify_buyer">Notify me — let me decide</option>
-                                        <option value="auto_reject">Auto-reject — politely decline</option>
-                                    </select>
-                                    <p className="text-xs text-gray-400 mt-1">What to do when a supplier responds after the collection deadline</p>
+                                <div className="mt-4 space-y-3">
+                                    <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
+                                        <div>
+                                            <p className="text-sm font-medium text-gray-800">Allow Counter Offers</p>
+                                            <p className="text-xs text-gray-400">Let suppliers propose modifications to quantity/terms</p>
+                                        </div>
+                                        <Switch checked={allowCounterOffers} onCheckedChange={setAllowCounterOffers} />
+                                    </div>
+                                    {isMultiItem && (
+                                        <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
+                                            <div>
+                                                <p className="text-sm font-medium text-gray-800">Allow Partial Quantity</p>
+                                                <p className="text-xs text-gray-400">If off, any supplier quoting less than the requested quantity pauses for your review.</p>
+                                            </div>
+                                            <Switch checked={allowPartialQuantity} onCheckedChange={setAllowPartialQuantity} />
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            <div className="mt-4 space-y-3">
-                                <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
+
+                            {/* Auto-accept & timing */}
+                            <div className="border-t border-gray-100 pt-5">
+                                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Auto-Accept & Timing</p>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <div>
-                                        <p className="text-sm font-medium text-gray-800">Early Close</p>
-                                        <p className="text-xs text-gray-400">Close early when a supplier reaches within X% of target</p>
+                                        <Label>{isMultiItem ? 'Total Budget Ceiling (optional)' : 'Auto-Accept Threshold (optional)'}</Label>
+                                        <Input type="number" step="0.01" value={autoAcceptThreshold} onChange={e => setAutoAcceptThreshold(e.target.value)} placeholder={isMultiItem ? 'e.g. 15000.00' : 'e.g. 75.00'} className={`mt-1 ${errors.autoAcceptThreshold ? 'border-red-400 focus-visible:ring-red-400' : ''}`} />
+                                        {errors.autoAcceptThreshold
+                                            ? <p className="text-xs text-red-500 mt-1">{errors.autoAcceptThreshold}</p>
+                                            : (
+                                                <p className="text-xs text-gray-400 mt-1">
+                                                    {isMultiItem
+                                                        ? 'Reject basket totals above this amount across all quoted line items'
+                                                        : 'Auto-accept if supplier quotes at or below this price — must be ≤ your target price'}
+                                                </p>
+                                            )}
                                     </div>
-                                    <Switch checked={earlyCloseEnabled} onCheckedChange={setEarlyCloseEnabled} />
+                                    <div>
+                                        <Label>Supplier Timeout (hours)</Label>
+                                        <Input type="number" min={1} value={timeoutHours} onChange={e => setTimeoutHours(parseInt(e.target.value) || 48)} className="mt-1" />
+                                    </div>
+                                    <div>
+                                        <Label>Late Response Policy</Label>
+                                        <select value={lateSubmissionPolicy} onChange={e => setLateSubmissionPolicy(e.target.value as 'notify_buyer' | 'auto_reject')} className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                                            <option value="notify_buyer">Notify me — let me decide</option>
+                                            <option value="auto_reject">Auto-reject — politely decline</option>
+                                        </select>
+                                        <p className="text-xs text-gray-400 mt-1">What to do when a supplier responds after the collection deadline</p>
+                                    </div>
                                 </div>
-                                {earlyCloseEnabled && (
-                                    <div className="pl-4">
-                                        <Label className="text-xs">Threshold</Label>
-                                        <div className="flex items-center gap-2 mt-1">
-                                            <Input type="number" step="0.01" min="0" max="0.5" value={earlyCloseThreshold} onChange={e => setEarlyCloseThreshold(e.target.value)} className="w-32" />
-                                            <span className="text-sm text-gray-500">{(parseFloat(earlyCloseThreshold || '0') * 100).toFixed(0)}% of target</span>
+                                <div className="mt-4 space-y-3">
+                                    <div className="flex items-center justify-between border border-gray-200 rounded-lg px-4 py-3">
+                                        <div className="pr-4">
+                                            <p className="text-sm font-medium text-gray-800">Auto-accept when close to target</p>
+                                            <p className="text-xs text-gray-400">If a supplier's offer is within the percentage below of your target price, AI accepts immediately instead of countering.</p>
                                         </div>
+                                        <Switch checked={earlyCloseEnabled} onCheckedChange={setEarlyCloseEnabled} />
                                     </div>
-                                )}
+                                    {earlyCloseEnabled && (() => {
+                                        const fraction = Math.max(0, Math.min(0.5, parseFloat(earlyCloseThreshold || '0') || 0))
+                                        const displayPercent = (fraction * 100).toFixed(fraction * 100 < 10 ? 1 : 0)
+                                        const onPercentChange = (raw: string) => {
+                                            if (raw === '' || raw === '.') {
+                                                setEarlyCloseThreshold('')
+                                                return
+                                            }
+                                            const pct = parseFloat(raw)
+                                            if (Number.isNaN(pct)) return
+                                            const clamped = Math.max(0, Math.min(50, pct))
+                                            setEarlyCloseThreshold((clamped / 100).toString())
+                                        }
+                                        return (
+                                            <div className="pl-4">
+                                                <Label className="text-xs">Tolerance (%)</Label>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="relative w-32">
+                                                        <Input
+                                                            type="number"
+                                                            step="0.1"
+                                                            min="0"
+                                                            max="50"
+                                                            value={earlyCloseThreshold === '' ? '' : displayPercent}
+                                                            onChange={e => onPercentChange(e.target.value)}
+                                                            className="pr-7"
+                                                        />
+                                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">%</span>
+                                                    </div>
+                                                    <span className="text-xs text-gray-500">
+                                                        e.g. with a target of $100/unit, AI accepts up to ${(100 * (1 + fraction)).toFixed(2)}/unit.
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )
+                                    })()}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1070,7 +1615,7 @@ const NegotiationForm = () => {
                         <Button
                             onClick={handleActivate}
                             disabled={isActivating || !canActivate}
-                            className="bg-[#1A4A7A] hover:bg-[#1A4A7A]/90 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-primary hover:bg-primary/90 gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isActivating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                             {isActivating ? 'Activating…' : 'Activate Session'}

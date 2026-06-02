@@ -48,6 +48,113 @@ export interface Session {
   ended_at: string | null;
 }
 
+export interface BAFOLineComparison {
+  line_number: number;
+  item_name: string;
+  quantity: number | null;
+  unit_price: number | null;
+  total_price: number | null;
+}
+
+export interface BAFOSupplierComparison {
+  negotiation_id: string;
+  supplier_id: string;
+  supplier_name: string | null;
+  supplier_email: string | null;
+  negotiation_status: string;
+  lifecycle_state: string | null;
+  lifecycle_label: string | null;
+  requires_buyer_action: boolean;
+  bafo_status: string;
+  bafo_requested_at: string | null;
+  bafo_received_at: string | null;
+  last_activity_at: string | null;
+  baseline_revision_number: number | null;
+  submitted_revision_number: number | null;
+  currency: string | null;
+  quantity: number | null;
+  unit_price: number | null;
+  total_price: number | null;
+  baseline_total_price: number | null;
+  delivery_days: number | null;
+  payment_days: number | null;
+  conditions: string | null;
+  line_items: BAFOLineComparison[];
+  quoted_item_count: number;
+}
+
+export interface BAFOBoard {
+  session_id: string;
+  negotiation_phase: string;
+  currency: string | null;
+  is_multi_item: boolean;
+  supplier_count: number;
+  requests_sent: number;
+  responses_received: number;
+  best_total_price: number | null;
+  best_supplier_id: string | null;
+  rows: BAFOSupplierComparison[];
+}
+
+export interface CompetitiveSupplierRow {
+  negotiation_id: string;
+  supplier_id: string;
+  supplier_name: string | null;
+  supplier_email: string | null;
+  negotiation_status: string;
+  lifecycle_state: string | null;
+  lifecycle_label: string | null;
+  requires_buyer_action: boolean;
+  metric_kind: string;
+  current_metric: number | null;
+  opening_metric: number | null;
+  metric_delta: number | null;
+  target_gap: number | null;
+  rank: number | null;
+  is_best: boolean;
+  last_activity_at: string | null;
+}
+
+export interface CompetitiveIntelligence {
+  session_id: string;
+  currency: string | null;
+  metric_kind: string;
+  supplier_count: number;
+  ranked_supplier_count: number;
+  best_metric: number | null;
+  average_metric: number | null;
+  spread: number | null;
+  target_metric: number | null;
+  best_target_gap: number | null;
+  rows: CompetitiveSupplierRow[];
+}
+
+export interface SessionAwardLine {
+  id: string;
+  session_id: string;
+  negotiation_id: string;
+  supplier_id: string;
+  rfq_line_item_id: string;
+  line_number: number;
+  item_name: string;
+  quantity: number | null;
+  unit_price: number | null;
+  total_price: number | null;
+  currency: string | null;
+  supplier_name: string | null;
+  supplier_email: string | null;
+  created_at: string;
+}
+
+export interface SessionAwardSummary {
+  session_id: string;
+  supplier_count: number;
+  line_count: number;
+  total_value: number | null;
+  currency: string | null;
+  rows: SessionAwardLine[];
+}
+
 export interface Constraints {
   id: string;
   session_id: string;
@@ -80,6 +187,11 @@ export interface Constraints {
   late_submission_policy: 'notify_buyer' | 'auto_reject';
   created_at: string;
   brief: NegotiationBrief | null;
+  commercial_anchors?: Array<{
+    label: string;
+    text: string;
+    required?: boolean;
+  }> | null;
 }
 
 export interface RFQ {
@@ -103,6 +215,12 @@ export interface RFQ {
     original_s3_key?: string;
     original_file_b64?: string;
     draft_data?: Record<string, any>;
+    document_governing_fields?: DocumentGoverningFields;
+    setup_state?: {
+      extraction_result?: RFQExtractionResult;
+      brief?: NegotiationBrief;
+    };
+    delivery_summary?: RFQDeliverySummary;
     procurement_policy?: Record<string, any>;
     policy_validation?: {
       blocking: boolean;
@@ -127,6 +245,7 @@ export interface Negotiation {
   pending_counteroffer: Record<string, any> | null;
   agreed_price: number | null;
   agreed_quantity: number | null;
+  agreed_terms: Record<string, any> | null;
   end_reason: string | null;
   nylas_thread_id: string | null;
   savings_amount: number | null;
@@ -242,6 +361,19 @@ export interface NegotiationEscalation {
   resolved_at: string | null;
 }
 
+export interface NegotiationEscalationPreview {
+  negotiation_id: string;
+  escalation_id: string;
+  recipient_name: string | null;
+  recipient_email: string | null;
+  resolution_strategy: "answer" | "proceed_without_answer" | "pause_negotiation" | "end_negotiation";
+  reply_body: string;
+  full_body: string;
+  signoff_name: string;
+  signoff_org: string | null;
+  attachment_count: number;
+}
+
 export interface NegotiationEvent {
   id: string;
   session_id: string;
@@ -288,9 +420,10 @@ export interface NylasGrantStatus {
   provider: string | null;
 }
 
-interface ApiResponse<T = any> {
+interface ApiResponse<T = any, M = any> {
   message: string;
   data: T;
+  meta?: M;
 }
 
 // ── Industries ───────────────────────────────────────────────────────────
@@ -389,6 +522,36 @@ export const useSession = (id: string) =>
     enabled: !!id,
   });
 
+export const useSessionBAFOBoard = (id: string) =>
+  useQuery({
+    queryKey: ["session-bafo-board", id],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<BAFOBoard>>(`/sessions/${id}/bafo-board`);
+      return res.data.data;
+    },
+    enabled: !!id,
+  });
+
+export const useSessionCompetitiveIntelligence = (id: string) =>
+  useQuery({
+    queryKey: ["session-competitive-intelligence", id],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<CompetitiveIntelligence>>(`/sessions/${id}/competitive-intelligence`);
+      return res.data.data;
+    },
+    enabled: !!id,
+  });
+
+export const useSessionAwardSummary = (id: string) =>
+  useQuery({
+    queryKey: ["session-award-summary", id],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<SessionAwardSummary>>(`/sessions/${id}/award-lines`);
+      return res.data.data;
+    },
+    enabled: !!id,
+  });
+
 export const useCreateSession = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -427,7 +590,14 @@ export const useSetConstraints = () => {
       const res = await api.post<ApiResponse<Constraints>>(`/sessions/${sessionId}/constraints`, data);
       return res.data.data;
     },
-    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["constraints", vars.sessionId] }),
+    onSuccess: (_, vars) => {
+      qc.setQueryData<Session | undefined>(["sessions", vars.sessionId], (existing) =>
+        existing ? { ...existing, status: "active" } : existing
+      );
+      qc.invalidateQueries({ queryKey: ["constraints", vars.sessionId] });
+      qc.invalidateQueries({ queryKey: ["sessions", vars.sessionId] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
   });
 };
 
@@ -566,7 +736,11 @@ export const useResolveNegotiationEscalation = () => {
     }: {
       negotiationId: string;
       escalationId: string;
-      data: { resolution_strategy: "answer" | "proceed_without_answer" | "pause_negotiation" | "end_negotiation"; buyer_answer?: string };
+      data: {
+        resolution_strategy: "answer" | "proceed_without_answer" | "pause_negotiation" | "end_negotiation";
+        buyer_answer?: string;
+        attachments?: Array<{ content: string; content_type: string; filename: string; size?: number }>;
+      };
     }) => {
       const res = await api.post<ApiResponse<NegotiationEscalation>>(
         `/negotiations/${negotiationId}/escalations/${escalationId}/resolve`,
@@ -583,10 +757,75 @@ export const useResolveNegotiationEscalation = () => {
   });
 };
 
+export const usePreviewNegotiationEscalation = () => {
+  return useMutation({
+    mutationFn: async ({
+      negotiationId,
+      escalationId,
+      data,
+    }: {
+      negotiationId: string;
+      escalationId: string;
+      data: {
+        resolution_strategy: "answer" | "proceed_without_answer" | "pause_negotiation" | "end_negotiation";
+        buyer_answer?: string;
+        attachments?: Array<{ content: string; content_type: string; filename: string; size?: number }>;
+      };
+    }) => {
+      const res = await api.post<ApiResponse<NegotiationEscalationPreview>>(
+        `/negotiations/${negotiationId}/escalations/${escalationId}/preview-resolution`,
+        data,
+      );
+      return res.data.data;
+    },
+  });
+};
+
+export const useSubmitManualQuote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      negotiationId,
+      data,
+    }: {
+      negotiationId: string;
+      data: {
+        single_item?: {
+          unit_price: number;
+          quantity: number;
+          delivery_days: number;
+          payment_days: number;
+          conditions?: string;
+          currency?: string;
+        };
+        multi_item?: {
+          line_items: Array<{ line_number: number; unit_price: number; quantity?: number }>;
+          delivery_days: number;
+          payment_days: number;
+          conditions?: string;
+          currency?: string;
+        };
+      };
+    }) => {
+      const res = await api.post<ApiResponse<Negotiation>>(
+        `/negotiations/${negotiationId}/manual-quote`,
+        data,
+      );
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiation-events", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiation-messages", neg.id] });
+      qc.invalidateQueries({ queryKey: ["quote-revisions", neg.id] });
+    },
+  });
+};
+
 export const useApproveCounteroffer = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: { approved: boolean; override_message?: string; override_price?: number; override_quantity?: number } }) => {
+    mutationFn: async ({ id, data }: { id: string; data: { approved: boolean; override_message?: string; override_price?: number; override_quantity?: number; attachments?: Array<{ content: string; content_type: string; filename: string; size?: number }> } }) => {
       const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/approve`, data);
       return res.data.data;
     },
@@ -657,6 +896,98 @@ export const useOverrideNegotiation = () => {
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data?: { override_message?: string } }) => {
       const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/override`, data || {});
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useResolveVariance = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, action }: { id: string; action: 'accept' | 'request_correction' | 'resume' }) => {
+      const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/resolve-variance`, { action });
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useRequestRequote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (
+      input: string | { id: string; buyer_message?: string },
+    ) => {
+      const id = typeof input === "string" ? input : input.id;
+      const payload = typeof input === "string" ? undefined : { buyer_message: input.buyer_message };
+      const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/request-requote`, payload);
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useAcceptCommercialTerms = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/accept-commercial-terms`);
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useAcceptPartialQuote = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/accept-partial-quote`);
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useReissueSupplierRequest = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/reissue-supplier-request`);
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useAcceptPriceRange = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, basis }: { id: string; basis: "low" | "midpoint" | "high" }) => {
+      const res = await api.post<ApiResponse<Negotiation>>(
+        `/negotiations/${id}/accept-price-range`,
+        null,
+        { params: { basis } },
+      );
       return res.data.data;
     },
     onSuccess: (neg) => {
@@ -777,6 +1108,43 @@ export interface RFQExtractionResult {
   warning: string | null;
 }
 
+export interface DocumentGoverningFields {
+  currency?: string;
+  response_deadline?: string;
+  response_deadline_text?: string;
+  delivery_location?: string;
+  delivery_working_days?: number;
+  delivery_date?: string;
+  delivery_date_text?: string;
+  payment_terms?: string;
+  payment_terms_days?: number;
+  quantity?: number;
+  tax_basis?: string;
+}
+
+export interface RFQFailedSupplier {
+  supplier_id: string;
+  supplier_name: string | null;
+  email: string | null;
+}
+
+export interface RFQDeliverySummary {
+  supplier_count: number;
+  sent_count: number;
+  failed_count: number;
+  failed_suppliers: RFQFailedSupplier[];
+  last_attempt_at: string;
+}
+
+export interface RFQDeliveryMeta {
+  partial_failure: boolean;
+  sent_count: number;
+  supplier_count: number;
+  failed_suppliers: RFQFailedSupplier[];
+  delivered_this_attempt: number;
+  retry: boolean;
+}
+
 export const useExtractRFQ = () =>
   useMutation({
     mutationFn: async ({ sessionId, content }: { sessionId: string; content: string }) => {
@@ -816,11 +1184,14 @@ export const useExtractBrief = () =>
 export const useCreateRFQ = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ sessionId, data }: { sessionId: string; data: { item_name: string; content?: string; description?: string; quantity?: number; target_price?: number; deadline?: string; response_deadline?: string; line_items?: RFQLineItemCreate[]; original_file_b64?: string; original_filename?: string } }) => {
+    mutationFn: async ({ sessionId, data }: { sessionId: string; data: { item_name: string; content?: string; description?: string; quantity?: number; target_price?: number; deadline?: string; response_deadline?: string; line_items?: RFQLineItemCreate[]; original_file_b64?: string; original_filename?: string; document_governing_fields?: DocumentGoverningFields; extraction_result?: RFQExtractionResult } }) => {
       const res = await api.post<ApiResponse<RFQ>>(`/sessions/${sessionId}/rfq`, data);
       return res.data.data;
     },
-    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["rfq", vars.sessionId] }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["rfq", vars.sessionId] });
+      qc.invalidateQueries({ queryKey: ["sessions", vars.sessionId] });
+    },
   });
 };
 
@@ -902,12 +1273,32 @@ export const useApproveRFQ = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const res = await api.post<ApiResponse<RFQ>>(`/sessions/${sessionId}/rfq/approve`);
-      return res.data.data;
+      const res = await api.post<ApiResponse<RFQ, RFQDeliveryMeta>>(`/sessions/${sessionId}/rfq/approve`);
+      return res.data;
     },
-    onSuccess: (rfq) => {
-      qc.invalidateQueries({ queryKey: ["rfq", rfq.session_id] });
-      qc.invalidateQueries({ queryKey: ["negotiations", rfq.session_id] });
+    onSuccess: (response) => {
+      qc.invalidateQueries({ queryKey: ["rfq", response.data.session_id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", response.data.session_id] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
+    onSettled: (_data, _error, sessionId) => {
+      qc.invalidateQueries({ queryKey: ["rfq", sessionId] });
+      qc.invalidateQueries({ queryKey: ["negotiations", sessionId] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+    },
+  });
+};
+
+export const useRetryRFQDelivery = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await api.post<ApiResponse<RFQ, RFQDeliveryMeta>>(`/sessions/${sessionId}/rfq/retry-delivery`);
+      return res.data;
+    },
+    onSuccess: (response) => {
+      qc.invalidateQueries({ queryKey: ["rfq", response.data.session_id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", response.data.session_id] });
       qc.invalidateQueries({ queryKey: ["sessions"] });
     },
     onSettled: (_data, _error, sessionId) => {
@@ -964,11 +1355,16 @@ export const useCancelSession = () => {
 export const useCloseSession = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, awarded_supplier_id, reason }: { id: string; awarded_supplier_id?: string; reason?: string }) => {
-      const res = await api.post<ApiResponse<Session>>(`/sessions/${id}/close`, { awarded_supplier_id, reason });
+    mutationFn: async ({ id, awarded_supplier_id, line_awards, reason }: { id: string; awarded_supplier_id?: string; line_awards?: Array<{ rfq_line_item_id: string; supplier_id: string }>; reason?: string }) => {
+      const res = await api.post<ApiResponse<Session>>(`/sessions/${id}/close`, { awarded_supplier_id, line_awards, reason });
       return res.data.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: ["session-bafo-board", vars.id] });
+      qc.invalidateQueries({ queryKey: ["session-competitive-intelligence", vars.id] });
+      qc.invalidateQueries({ queryKey: ["session-award-summary", vars.id] });
+    },
   });
 };
 
@@ -1003,6 +1399,16 @@ export const useAddSuppliersToSession = () => {
   });
 };
 
+export const useRemoveSupplierFromSession = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, supplier_id }: { id: string; supplier_id: string }) => {
+      await api.delete(`/sessions/${id}/suppliers/${supplier_id}`);
+    },
+    onSuccess: (_, vars) => qc.invalidateQueries({ queryKey: ["negotiations", vars.id] }),
+  });
+};
+
 export const useUpdateConstraints = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -1021,7 +1427,11 @@ export const useStartBAFO = () => {
       const res = await api.post<ApiResponse<Session>>(`/sessions/${id}/start-bafo`);
       return res.data.data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["sessions"] }),
+    onSuccess: (_, id) => {
+      qc.invalidateQueries({ queryKey: ["sessions"] });
+      qc.invalidateQueries({ queryKey: ["session-bafo-board", id] });
+      qc.invalidateQueries({ queryKey: ["session-competitive-intelligence", id] });
+    },
   });
 };
 
