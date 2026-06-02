@@ -1,15 +1,17 @@
 "use client"
-import React, { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import {
     Play, Pause, X, Trophy, Zap, ChevronDown, ChevronUp, CheckCircle2,
     AlertCircle, TrendingUp, TrendingDown, Minus, RotateCcw, Award,
     Users, DollarSign, MessageSquare, Clock, Sparkles, Loader2,
-    Settings2, Mail, Pencil, XCircle, ExternalLink,
+    Settings2, Mail, Pencil, XCircle, ExternalLink, Paperclip, Trash2,
+    Plus,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { buildRfqMeta, compactRfqDescription } from '@/lib/rfqDisplay'
@@ -17,14 +19,17 @@ import { getApiError } from '@/lib/utils'
 import Link from 'next/link'
 import {
     useSession, useConstraints, useNegotiationsBySession, useSuppliers,
+    useSessionBAFOBoard, useSessionCompetitiveIntelligence,
+    useSessionAwardSummary,
     useNegotiationMessages, useNegotiationEvents,
     usePauseSession, useResumeSession, useCancelSession, useCloseSession,
+    useDeleteSession, useAddSuppliersToSession,
     useStartNegotiating, useStartBAFO,
     useApproveCounteroffer, useAcceptNegotiation,
     usePauseNegotiation, useResumeNegotiation, useEndNegotiation,
     useUpdateConstraints, useNylasConnection, useRFQ, useUpdateRFQLineItems,
     subscribeToSessionEvents, downloadNegotiationAttachment,
-    Negotiation, NegotiationEvent, Supplier,
+    BAFOBoard, CompetitiveIntelligence, Constraints, Negotiation, NegotiationEvent, RFQ, Session, SessionAwardSummary, Supplier,
 } from '@/services/requests/negotiation'
 
 // ── Message display helpers ────────────────────────────────────────────────
@@ -70,6 +75,7 @@ function splitQuotedReply(text: string): [string, string | null] {
 // ── colour maps ────────────────────────────────────────────────────────────
 
 const SESSION_STATUS_COLOR: Record<string, string> = {
+    awaiting_rfq: 'bg-sky-100 text-sky-800 border-sky-200',
     awaiting_constraints: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     active: 'bg-green-100 text-green-800 border-green-200',
     paused: 'bg-orange-100 text-orange-800 border-orange-200',
@@ -113,10 +119,376 @@ const LIFECYCLE_COLOR: Record<string, string> = {
     waiting_on_supplier: 'bg-slate-100 text-slate-700 border-slate-200',
     clarification_pending: 'bg-orange-50 text-orange-700 border-orange-200',
     bafo_requested: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    bafo_received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     awarded: 'bg-green-50 text-green-700 border-green-200',
     rejected: 'bg-red-50 text-red-700 border-red-200',
     timed_out: 'bg-gray-200 text-gray-600 border-gray-300',
     ghosted: 'bg-stone-100 text-stone-700 border-stone-200',
+}
+
+function relTimeShort(iso: string | null | undefined): string {
+    if (!iso) return '—'
+    const ms = Date.now() - new Date(iso).getTime()
+    if (Number.isNaN(ms)) return '—'
+    const min = Math.floor(ms / 60000)
+    if (min < 1) return 'just now'
+    if (min < 60) return `${min}m ago`
+    const hr = Math.floor(min / 60)
+    if (hr < 24) return `${hr}h ago`
+    const day = Math.floor(hr / 24)
+    if (day < 30) return `${day}d ago`
+    return new Date(iso).toLocaleDateString()
+}
+
+function SupplierLanesGrid({
+    negotiations,
+    supplierMap,
+    sessionId,
+}: {
+    negotiations: Negotiation[]
+    supplierMap: Map<string, any>
+    sessionId: string
+}) {
+    if (!negotiations.length) return null
+    return (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    Supplier Lanes
+                    <span className="text-muted-foreground text-sm font-normal ml-1">{negotiations.length}</span>
+                </h3>
+                <span className="text-xs text-muted-foreground">At-a-glance status across all suppliers</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-4">
+                {negotiations.map((neg) => {
+                    const supplier = supplierMap.get(neg.supplier_id)
+                    const lifecycle = lifecycleMeta(neg)
+                    const lastActivity = neg.last_activity_at || (neg as any).updated_at || neg.created_at
+                    const currentPrice = (neg as any).current_price as number | null | undefined
+                    return (
+                        <Link
+                            key={neg.id}
+                            href={`/user/negotiation/${sessionId}/${neg.id}`}
+                            className={`block rounded-lg border bg-white p-3 hover:shadow-sm transition ${
+                                lifecycle.requiresAction ? 'border-amber-300 ring-1 ring-amber-200' : 'border-gray-200'
+                            }`}
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">
+                                        {supplier?.name || `Supplier ${neg.supplier_id.slice(0, 8)}`}
+                                    </p>
+                                    <p className="text-xs text-gray-500 truncate">{supplier?.email ?? ''}</p>
+                                </div>
+                                {lifecycle.requiresAction && (
+                                    <span className="flex-shrink-0 text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-800 rounded-full px-2 py-0.5">
+                                        Action
+                                    </span>
+                                )}
+                            </div>
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                                <span className={`text-[11px] rounded-full border px-2 py-0.5 font-medium ${lifecycle.chip}`}>
+                                    {lifecycle.label}
+                                </span>
+                                {neg.current_round != null && neg.current_round > 0 && (
+                                    <span className="text-[11px] text-gray-500">Round {neg.current_round}</span>
+                                )}
+                            </div>
+                            <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                                <span className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3" />
+                                    {relTimeShort(lastActivity)}
+                                </span>
+                                {currentPrice != null && (
+                                    <span className="font-medium text-gray-700">
+                                        ${Number(currentPrice).toLocaleString()}
+                                    </span>
+                                )}
+                            </div>
+                        </Link>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+const BAFO_STATUS_CHIP: Record<string, string> = {
+    requesting: 'bg-slate-100 text-slate-700 border-slate-200',
+    awaiting_supplier: 'bg-amber-50 text-amber-700 border-amber-200',
+    received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    awarded: 'bg-green-50 text-green-700 border-green-200',
+    closed: 'bg-gray-100 text-gray-600 border-gray-200',
+    pre_bafo: 'bg-slate-100 text-slate-700 border-slate-200',
+}
+
+function BAFOBoardPanel({
+    sessionId,
+    board,
+    onAfterAction,
+}: {
+    sessionId: string
+    board: BAFOBoard
+    onAfterAction: () => void
+}) {
+    const closeSession = useCloseSession()
+    const [selectedSupplier, setSelectedSupplier] = useState<string>(board.best_supplier_id || '')
+    useEffect(() => {
+        setSelectedSupplier(board.best_supplier_id || '')
+    }, [board.best_supplier_id])
+
+    const rankedRows = [...board.rows].sort((a, b) => {
+        const av = a.total_price == null ? Number.POSITIVE_INFINITY : a.total_price
+        const bv = b.total_price == null ? Number.POSITIVE_INFINITY : b.total_price
+        return av - bv
+    })
+
+    const money = (n: number | null | undefined) =>
+        n == null ? '—' : `${board.currency || 'USD'} ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+    const awardSelected = async () => {
+        if (!selectedSupplier) return
+        try {
+            await closeSession.mutateAsync({
+                id: sessionId,
+                awarded_supplier_id: selectedSupplier,
+                reason: 'BAFO closeout',
+            })
+            toast.success('BAFO winner awarded and session closed')
+            onAfterAction()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to award BAFO winner'))
+        }
+    }
+
+    return (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-border">
+                <div>
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                        <Trophy className="h-4 w-4 text-amber-500" />
+                        BAFO Comparison
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {board.responses_received} of {board.requests_sent || board.supplier_count} supplier{board.supplier_count === 1 ? '' : 's'} submitted a final offer.
+                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                    {board.best_total_price != null && (
+                        <div className="text-right">
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Best current total</p>
+                            <p className="text-sm font-semibold text-foreground">{money(board.best_total_price)}</p>
+                        </div>
+                    )}
+                    <Button
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-white border-0"
+                        disabled={!selectedSupplier || closeSession.isPending}
+                        onClick={awardSelected}
+                    >
+                        {closeSession.isPending ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Award className="h-3.5 w-3.5 mr-1" />}
+                        Award Selected
+                    </Button>
+                </div>
+            </div>
+
+            <div className="p-4 space-y-3">
+                {rankedRows.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">No suppliers available for BAFO comparison yet.</div>
+                ) : rankedRows.map((row, idx) => {
+                    const delta = row.total_price != null && row.baseline_total_price != null
+                        ? row.total_price - row.baseline_total_price
+                        : null
+                    const isBest = board.best_supplier_id === row.supplier_id
+                    return (
+                        <div
+                            key={row.negotiation_id}
+                            className={`rounded-xl border p-4 transition ${
+                                selectedSupplier === row.supplier_id
+                                    ? 'border-amber-300 ring-2 ring-amber-100 bg-amber-50/40'
+                                    : row.requires_buyer_action
+                                        ? 'border-amber-200 bg-amber-50/30'
+                                        : isBest
+                                            ? 'border-emerald-200 bg-emerald-50/30'
+                                            : 'border-gray-200 bg-white'
+                            }`}
+                        >
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <button
+                                            type="button"
+                                            className="text-left"
+                                            onClick={() => setSelectedSupplier(row.supplier_id)}
+                                        >
+                                            <p className="text-sm font-semibold text-gray-900">{row.supplier_name || row.supplier_email || row.supplier_id}</p>
+                                        </button>
+                                        <span className="text-[11px] rounded-full border px-2 py-0.5 font-medium text-gray-500 border-gray-200">
+                                            Rank #{idx + 1}
+                                        </span>
+                                        <span className={`text-[11px] rounded-full border px-2 py-0.5 font-medium ${BAFO_STATUS_CHIP[row.bafo_status] || BAFO_STATUS_CHIP.requesting}`}>
+                                            {row.bafo_status.replace(/_/g, ' ')}
+                                        </span>
+                                        {row.requires_buyer_action && (
+                                            <span className="text-[11px] rounded-full border px-2 py-0.5 font-medium bg-amber-100 text-amber-800 border-amber-200">
+                                                Needs review
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        {row.supplier_email || 'No email'} · Last activity {relTimeShort(row.last_activity_at)}
+                                    </p>
+                                </div>
+
+                                <div className="flex items-center gap-3">
+                                    <div className="text-right">
+                                        <p className="text-[11px] uppercase tracking-wide text-gray-500">Final quote</p>
+                                        <p className="text-sm font-semibold text-gray-900">{money(row.total_price)}</p>
+                                        {delta != null && (
+                                            <p className={`text-xs font-medium ${delta < 0 ? 'text-emerald-600' : delta > 0 ? 'text-red-600' : 'text-gray-500'}`}>
+                                                {delta < 0 ? 'Improved' : delta > 0 ? 'Higher' : 'Unchanged'} vs pre-BAFO {money(Math.abs(delta))}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <input
+                                        type="radio"
+                                        name="bafo-award-supplier"
+                                        className="h-4 w-4"
+                                        checked={selectedSupplier === row.supplier_id}
+                                        onChange={() => setSelectedSupplier(row.supplier_id)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+                                <div>
+                                    <p className="text-gray-500">Baseline</p>
+                                    <p className="font-medium text-gray-800">{money(row.baseline_total_price)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Delivery</p>
+                                    <p className="font-medium text-gray-800">{row.delivery_days != null ? `${row.delivery_days} days` : '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Payment</p>
+                                    <p className="font-medium text-gray-800">{row.payment_days != null ? `${row.payment_days} days` : '—'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Quoted items</p>
+                                    <p className="font-medium text-gray-800">{row.line_items.length > 0 ? row.quoted_item_count : (row.unit_price != null ? 1 : 0)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500">Revision</p>
+                                    <p className="font-medium text-gray-800">
+                                        {row.submitted_revision_number != null ? `Rev ${row.submitted_revision_number}` : '—'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {row.line_items.length > 0 && (
+                                <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                                    <p className="text-[11px] uppercase tracking-wide text-gray-500 mb-2">Line items</p>
+                                    <div className="space-y-1.5">
+                                        {row.line_items.map((line) => (
+                                            <div key={`${row.negotiation_id}-${line.line_number}`} className="flex items-center justify-between gap-3 text-xs">
+                                                <span className="text-gray-700 truncate">
+                                                    {line.line_number}. {line.item_name}
+                                                </span>
+                                                <span className="font-medium text-gray-900 whitespace-nowrap">
+                                                    {money(line.total_price)}{line.quantity != null && line.unit_price != null ? ` (${money(line.unit_price)} x ${line.quantity})` : ''}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {row.conditions && (
+                                <p className="mt-3 text-xs text-gray-600">
+                                    <span className="font-medium text-gray-700">Conditions:</span> {row.conditions}
+                                </p>
+                            )}
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
+}
+
+function SplitAwardSummaryPanel({ summary }: { summary: SessionAwardSummary }) {
+    if (!summary.rows.length) return null
+    const grouped = new Map<string, { supplierName: string; supplierEmail: string | null; rows: SessionAwardSummary['rows'] }>()
+    for (const row of summary.rows) {
+        const key = row.supplier_id
+        const current = grouped.get(key) || {
+            supplierName: row.supplier_name || row.supplier_email || row.supplier_id,
+            supplierEmail: row.supplier_email,
+            rows: [],
+        }
+        current.rows.push(row)
+        grouped.set(key, current)
+    }
+    const money = (n: number | null | undefined) =>
+        n == null ? '—' : `${summary.currency || 'USD'} ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+    return (
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-border">
+                <div>
+                    <h3 className="text-base font-semibold text-foreground flex items-center gap-2">
+                        <Award className="h-4 w-4 text-emerald-600" />
+                        Split Award Summary
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {summary.line_count} line items awarded across {summary.supplier_count} supplier{summary.supplier_count === 1 ? '' : 's'}.
+                    </p>
+                </div>
+                {summary.total_value != null && (
+                    <div className="text-right">
+                        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Total awarded value</p>
+                        <p className="text-sm font-semibold text-foreground">{money(summary.total_value)}</p>
+                    </div>
+                )}
+            </div>
+            <div className="p-4 space-y-4">
+                {Array.from(grouped.values()).map((group) => {
+                    const supplierTotal = group.rows.reduce((sum, row) => sum + (row.total_price ?? 0), 0)
+                    return (
+                        <div key={group.supplierName} className="rounded-xl border border-gray-200 bg-white p-4">
+                            <div className="flex items-start justify-between gap-3 mb-3">
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-900">{group.supplierName}</p>
+                                    {group.supplierEmail && <p className="text-xs text-gray-500">{group.supplierEmail}</p>}
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[11px] uppercase tracking-wide text-gray-500">Awarded value</p>
+                                    <p className="text-sm font-semibold text-gray-900">{money(supplierTotal)}</p>
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                {group.rows
+                                    .slice()
+                                    .sort((a, b) => a.line_number - b.line_number)
+                                    .map((row) => (
+                                        <div key={row.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm">
+                                            <div>
+                                                <p className="font-medium text-gray-800">{row.line_number}. {row.item_name}</p>
+                                                <p className="text-xs text-gray-500">
+                                                    Qty {row.quantity ?? '—'} · Unit {money(row.unit_price)}
+                                                </p>
+                                            </div>
+                                            <p className="font-semibold text-gray-900">{money(row.total_price)}</p>
+                                        </div>
+                                    ))}
+                            </div>
+                        </div>
+                    )
+                })}
+            </div>
+        </div>
+    )
 }
 
 function lifecycleMeta(negotiation: Negotiation) {
@@ -128,6 +500,283 @@ function lifecycleMeta(negotiation: Negotiation) {
         chip: LIFECYCLE_COLOR[state] || 'bg-muted text-muted-foreground border-border',
         requiresAction: Boolean(negotiation.requires_buyer_action),
     }
+}
+
+function prettyJson(value: unknown) {
+    try {
+        return JSON.stringify(value, null, 2)
+    } catch {
+        return String(value)
+    }
+}
+
+function WorkflowInspectorSection({
+    title,
+    subtitle,
+    defaultOpen = false,
+    children,
+}: {
+    title: string
+    subtitle?: string
+    defaultOpen?: boolean
+    children: React.ReactNode
+}) {
+    const [open, setOpen] = useState(defaultOpen)
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+                <div>
+                    <p className="text-sm font-semibold text-slate-900">{title}</p>
+                    {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+                </div>
+                {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+            </button>
+            {open && <div className="border-t border-slate-100 px-4 py-4">{children}</div>}
+        </div>
+    )
+}
+
+function sessionNextStep(session: Session, constraints: Constraints | undefined, bafoBoard: BAFOBoard | undefined) {
+    if (session.status === 'awaiting_rfq') {
+        return 'Backend is waiting for the uploaded RFQ document before it can extract supplier-facing terms and unlock the rest of setup.'
+    }
+    if (session.status === 'awaiting_constraints') {
+        return 'Backend is waiting for commercial constraints before it can activate suppliers or send RFQ-driven automation.'
+    }
+    if (session.status === 'paused') {
+        return `Session-level orchestration is paused. Reason: ${session.pause_reason || 'not specified'}. Supplier lanes keep their own lane state, but top-level automation should be stopped.`
+    }
+    if (session.negotiation_phase === 'collection') {
+        return `Backend is collecting supplier quotes until the threshold (${session.min_responses_required}) or submission deadline is met, then it can transition into live negotiation.`
+    }
+    if (session.negotiation_phase === 'negotiating') {
+        return constraints?.approval_mode === 'manual'
+            ? 'Session is in live negotiation. Each supplier lane can auto-process inbound offers, but outbound counters should stop for buyer approval.'
+            : 'Session is in live negotiation. Supplier lanes should run end to end automatically unless a rule violation, provider failure, or buyer-review pause occurs.'
+    }
+    if (session.negotiation_phase === 'bafo') {
+        return `Session is in BAFO closeout. ${bafoBoard?.responses_received ?? 0} of ${bafoBoard?.supplier_count ?? 0} suppliers have submitted final offers.`
+    }
+    return 'Session orchestration is in a non-standard state and should be reviewed.'
+}
+
+function SessionWorkflowInspector({
+    session,
+    constraints,
+    negotiations,
+    bafoBoard,
+    awardSummary,
+    rfq,
+}: {
+    session: Session
+    constraints?: Constraints
+    negotiations: Negotiation[]
+    bafoBoard?: BAFOBoard
+    awardSummary?: SessionAwardSummary
+    rfq?: RFQ
+}) {
+    const lifecycleCounts = negotiations.reduce<Record<string, number>>((acc, neg) => {
+        const key = neg.lifecycle_state || neg.status || 'unknown'
+        acc[key] = (acc[key] || 0) + 1
+        return acc
+    }, {})
+    const buyerActionCount = negotiations.filter((neg) => neg.requires_buyer_action).length
+    const tiles = [
+        { label: 'Session status', value: session.status },
+        { label: 'Negotiation phase', value: session.negotiation_phase },
+        { label: 'Approval mode', value: constraints?.approval_mode || '—' },
+        { label: 'Award basis', value: constraints?.award_basis || '—' },
+        { label: 'Supplier timeout', value: constraints ? `${constraints.supplier_timeout_hours}h` : '—' },
+        { label: 'Threshold', value: `${session.quote_count}/${session.min_responses_required}` },
+        { label: 'Buyer action lanes', value: String(buyerActionCount) },
+        { label: 'RFQ lines', value: String(rfq?.line_items?.length || 0) },
+    ]
+
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-slate-500">Session orchestration inspector</p>
+                    <p className="text-sm text-slate-700 mt-1 max-w-3xl">
+                        {sessionNextStep(session, constraints, bafoBoard)}
+                    </p>
+                </div>
+                <Badge className="border border-slate-300 bg-white text-slate-700 text-xs">
+                    Backend session view
+                </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {tiles.map((tile) => (
+                    <div key={tile.label} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{tile.label}</p>
+                        <p className="text-sm font-semibold text-slate-800 capitalize break-words">{tile.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            <WorkflowInspectorSection
+                title="Lane state distribution"
+                subtitle="How the backend currently classifies supplier lanes."
+                defaultOpen
+            >
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(lifecycleCounts).length === 0 ? (
+                        <p className="text-sm text-slate-500">No supplier lanes exist yet.</p>
+                    ) : Object.entries(lifecycleCounts)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([state, count]) => (
+                            <span key={state} className={`rounded-full border px-3 py-1 text-xs font-medium ${LIFECYCLE_COLOR[state] || 'bg-slate-100 text-slate-700 border-slate-200'}`}>
+                                {state.replace(/_/g, ' ')} · {count}
+                            </span>
+                        ))}
+                </div>
+            </WorkflowInspectorSection>
+
+            <WorkflowInspectorSection
+                title="Commercial rules in force"
+                subtitle="These settings decide how buyer review, comparison, and closeout behave."
+            >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                        <p className="font-semibold text-slate-800 mb-2">Negotiation controls</p>
+                        <div className="space-y-1.5 text-slate-600">
+                            <p>Strategy: <span className="font-medium text-slate-800 capitalize">{constraints?.strategy || '—'}</span></p>
+                            <p>Approval mode: <span className="font-medium text-slate-800 capitalize">{constraints?.approval_mode || '—'}</span></p>
+                            <p>Max rounds: <span className="font-medium text-slate-800">{constraints?.max_rounds ?? '—'}</span></p>
+                            <p>Auto-accept: <span className="font-medium text-slate-800">{constraints?.auto_accept_threshold != null ? `${constraints.currency} ${constraints.auto_accept_threshold}` : 'Off'}</span></p>
+                        </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                        <p className="font-semibold text-slate-800 mb-2">Commercial review policies</p>
+                        <div className="space-y-1.5 text-slate-600">
+                            <p>Partial quote policy: <span className="font-medium text-slate-800">{constraints?.partial_quote_policy || '—'}</span></p>
+                            <p>Price violation scope: <span className="font-medium text-slate-800">{constraints?.price_violation_scope || '—'}</span></p>
+                            <p>Commercial basis mode: <span className="font-medium text-slate-800">{constraints?.commercial_basis_mode || '—'}</span></p>
+                            <p>Award basis: <span className="font-medium text-slate-800">{constraints?.award_basis || '—'}</span></p>
+                        </div>
+                    </div>
+                </div>
+            </WorkflowInspectorSection>
+
+            <WorkflowInspectorSection
+                title="Stored payloads"
+                subtitle="Session, constraints, BAFO board, and award summary as currently returned by the backend."
+            >
+                <div className="space-y-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">session</p>
+                        <pre className="max-h-64 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-[11px] text-slate-100">{prettyJson(session)}</pre>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">constraints</p>
+                        <pre className="max-h-64 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-[11px] text-slate-100">{prettyJson(constraints)}</pre>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">bafo / award state</p>
+                        <pre className="max-h-64 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-[11px] text-slate-100">{prettyJson({ bafoBoard, awardSummary })}</pre>
+                    </div>
+                </div>
+            </WorkflowInspectorSection>
+        </div>
+    )
+}
+
+function metricLabel(metricKind: string) {
+    return metricKind === 'basket_total' ? 'Basket Total' : 'Unit Price'
+}
+
+function CompetitiveIntelligencePanel({
+    intelligence,
+}: {
+    intelligence?: CompetitiveIntelligence
+}) {
+    if (!intelligence || intelligence.supplier_count === 0) return null
+
+    const label = metricLabel(intelligence.metric_kind)
+    const money = (value: number | null | undefined) => value == null
+        ? '—'
+        : `${intelligence.currency || 'USD'} ${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    const deltaMoney = (value: number | null | undefined) => value == null
+        ? '—'
+        : `${value > 0 ? '+' : ''}${intelligence.currency || 'USD'} ${Math.abs(Number(value)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-4">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+                <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-slate-500">Competitive intelligence</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                        Latest supplier ranking, average, spread, and target gap for this sourcing event.
+                    </p>
+                </div>
+                <Badge className="border border-slate-300 bg-slate-50 text-slate-700 text-xs">
+                    {label}
+                </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                {[
+                    { label: 'Best', value: money(intelligence.best_metric) },
+                    { label: 'Average', value: money(intelligence.average_metric) },
+                    { label: 'Spread', value: money(intelligence.spread) },
+                    { label: 'Target', value: money(intelligence.target_metric) },
+                    { label: 'Ranked suppliers', value: `${intelligence.ranked_supplier_count}/${intelligence.supplier_count}` },
+                ].map((tile) => (
+                    <div key={tile.label} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{tile.label}</p>
+                        <p className="text-sm font-semibold text-slate-800">{tile.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                    <thead>
+                        <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+                            <th className="py-2 pr-3">Rank</th>
+                            <th className="py-2 pr-3">Supplier</th>
+                            <th className="py-2 pr-3">{label}</th>
+                            <th className="py-2 pr-3">Delta</th>
+                            <th className="py-2 pr-3">Target Gap</th>
+                            <th className="py-2 pr-3">State</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {intelligence.rows.map((row) => (
+                            <tr key={row.negotiation_id} className="border-b border-slate-100 last:border-0">
+                                <td className="py-3 pr-3">
+                                    <span className={`inline-flex min-w-8 justify-center rounded-full border px-2 py-0.5 text-xs font-semibold ${row.is_best ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-50 text-slate-700'}`}>
+                                        {row.rank ?? '—'}
+                                    </span>
+                                </td>
+                                <td className="py-3 pr-3">
+                                    <div>
+                                        <p className="font-medium text-slate-900">{row.supplier_name || 'Supplier'}</p>
+                                        <p className="text-xs text-slate-500">{row.supplier_email || row.negotiation_status}</p>
+                                    </div>
+                                </td>
+                                <td className="py-3 pr-3 font-medium text-slate-900">{money(row.current_metric)}</td>
+                                <td className={`py-3 pr-3 ${row.metric_delta != null && row.metric_delta <= 0 ? 'text-emerald-700' : 'text-slate-600'}`}>
+                                    {deltaMoney(row.metric_delta)}
+                                </td>
+                                <td className={`py-3 pr-3 ${row.target_gap != null && row.target_gap <= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                                    {deltaMoney(row.target_gap)}
+                                </td>
+                                <td className="py-3 pr-3 text-slate-600">
+                                    {row.lifecycle_label || row.lifecycle_state || '—'}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    )
 }
 
 const EVENT_BORDER: Record<string, string> = {
@@ -143,6 +792,13 @@ const EVENT_BORDER: Record<string, string> = {
     rule_check_failed: 'border-red-500',
 }
 
+function upsertSessionActivityEvent(existing: NegotiationEvent[], incoming: NegotiationEvent) {
+    const deduped = existing.filter((event) => event.id !== incoming.id)
+    const next = [incoming, ...deduped]
+    next.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    return next.slice(0, 50)
+}
+
 // ── root component ─────────────────────────────────────────────────────────
 
 const NegotiationSummary = () => {
@@ -150,6 +806,9 @@ const NegotiationSummary = () => {
     const id = params?.id as string
 
     const { data: session, refetch: refetchSession } = useSession(id)
+    const { data: bafoBoard, refetch: refetchBAFOBoard } = useSessionBAFOBoard(id)
+    const { data: competitiveIntelligence, refetch: refetchCompetitiveIntelligence } = useSessionCompetitiveIntelligence(id)
+    const { data: awardSummary, refetch: refetchAwardSummary } = useSessionAwardSummary(id)
     const { data: constraints, refetch: refetchConstraints } = useConstraints(id)
     const { data: negotiations, refetch: refetchNegotiations } = useNegotiationsBySession(id)
     const { data: suppliers } = useSuppliers()
@@ -160,26 +819,109 @@ const NegotiationSummary = () => {
     const resumeSession = useResumeSession()
     const cancelSession = useCancelSession()
     const closeSession = useCloseSession()
+    const deleteSession = useDeleteSession()
+    const addSuppliersToSession = useAddSuppliersToSession()
     const startNegotiating = useStartNegotiating()
     const startBAFO = useStartBAFO()
+
+    const router = useRouter()
 
     const [liveEvents, setLiveEvents] = useState<NegotiationEvent[]>([])
     const [showEvents, setShowEvents] = useState(true)
     const [expandedNeg, setExpandedNeg] = useState<string | null>(null)
     const [showCloseModal, setShowCloseModal] = useState(false)
     const [awardSupplier, setAwardSupplier] = useState('')
+    const [splitAwardSelections, setSplitAwardSelections] = useState<Record<string, string>>({})
     const [showStartNegotiatingModal, setShowStartNegotiatingModal] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [showAddSuppliersModal, setShowAddSuppliersModal] = useState(false)
+    const [addSupplierSelections, setAddSupplierSelections] = useState<Set<string>>(new Set())
+
+    // Debounced refetch refs — each resource has its own timer so they don't all
+    // fire together when multiple events arrive in a burst.
+    const sessionTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const negotiationsTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const bafoTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const intelTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const awardTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const scheduleRefetch = useCallback((
+        timerRef: React.MutableRefObject<ReturnType<typeof setTimeout> | null>,
+        fn: () => void,
+        delay: number,
+    ) => {
+        if (timerRef.current) clearTimeout(timerRef.current)
+        timerRef.current = setTimeout(fn, delay)
+    }, [])
+
+    // Event types that affect each resource — only refetch what actually changed.
+    const NEGOTIATION_EVENTS = new Set([
+        'email_received', 'quote_received', 'counteroffer_sent', 'agreement_reached',
+        'negotiation_ended', 'timed_out', 'supplier_rejected', 'rule_check_started',
+        'late_supplier_response', 'collection_threshold_met', 'bafo_requested',
+    ])
+    const BAFO_EVENTS = new Set([
+        'bafo_requested', 'bafo_received', 'quote_received', 'agreement_reached',
+        'collection_threshold_met',
+    ])
+    const INTEL_EVENTS = new Set([
+        'quote_received', 'counteroffer_sent', 'bafo_received', 'agreement_reached',
+        'collection_threshold_met',
+    ])
+    const AWARD_EVENTS = new Set([
+        'agreement_reached', 'negotiation_ended', 'award_issued', 'bafo_received',
+    ])
 
     useEffect(() => {
         if (!id) return
         const unsub = subscribeToSessionEvents(id, ev => {
-            setLiveEvents(prev => [ev, ...prev].slice(0, 50))
-            refetchSession()
-            refetchNegotiations()
+            setLiveEvents(prev => upsertSessionActivityEvent(prev, ev))
+            const type = ev.event_type as string
+
+            // Session metadata — debounce to 2 s, fire on any event.
+            scheduleRefetch(sessionTimer, refetchSession, 2000)
+
+            // Supplier lanes — only for events that mutate negotiation state.
+            if (NEGOTIATION_EVENTS.has(type))
+                scheduleRefetch(negotiationsTimer, refetchNegotiations, 2000)
+
+            // BAFO board — only for quote/agreement events.
+            if (BAFO_EVENTS.has(type))
+                scheduleRefetch(bafoTimer, refetchBAFOBoard, 3000)
+
+            // Competitive intel — only when offers change.
+            if (INTEL_EVENTS.has(type))
+                scheduleRefetch(intelTimer, refetchCompetitiveIntelligence, 3000)
+
+            // Award summary — only on terminal events.
+            if (AWARD_EVENTS.has(type))
+                scheduleRefetch(awardTimer, refetchAwardSummary, 3000)
         })
         return unsub
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [id])
+
+    useEffect(() => {
+        const splitAwardEnabled = constraints?.award_basis === 'line_item_split' && Boolean(rfq?.line_items?.length)
+        if (!splitAwardEnabled || !rfq?.line_items?.length || !bafoBoard?.rows?.length) return
+        setSplitAwardSelections((prev) => {
+            const next = { ...prev }
+            for (const line of rfq.line_items) {
+                if (next[line.id]) continue
+                let bestSupplierId = ''
+                let bestTotal = Number.POSITIVE_INFINITY
+                for (const row of bafoBoard.rows) {
+                    const match = row.line_items.find((entry) => entry.line_number === line.line_number)
+                    if (match?.total_price != null && match.total_price < bestTotal) {
+                        bestTotal = match.total_price
+                        bestSupplierId = row.supplier_id
+                    }
+                }
+                if (bestSupplierId) next[line.id] = bestSupplierId
+            }
+            return next
+        })
+    }, [constraints?.award_basis, rfq?.line_items, bafoBoard?.rows])
 
     if (!session) return null
 
@@ -197,6 +939,7 @@ const NegotiationSummary = () => {
         : constraints?.award_basis === 'lot_based'
             ? 'Lot based'
             : 'Single supplier'
+    const isSplitAwardSession = constraints?.award_basis === 'line_item_split' && Boolean(rfq?.line_items?.length)
     const scopeTiles = [
         rfq?.response_deadline
             ? { label: 'Quote Deadline', value: new Date(rfq.response_deadline).toLocaleDateString() }
@@ -326,6 +1069,16 @@ const NegotiationSummary = () => {
                                 onClick={() => doSessionAction(cancelSession, { id, reason: 'Manual cancel', force: true }, 'Session cancelled')}>
                                 <X className="h-3 w-3 mr-1" /> Cancel
                             </Button>
+                            {(session.status === 'awaiting_rfq' || session.status === 'awaiting_constraints') && (
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                >
+                                    <Trash2 className="h-3 w-3 mr-1" /> Delete
+                                </Button>
+                            )}
                         </div>
                     )}
                 </div>
@@ -337,34 +1090,107 @@ const NegotiationSummary = () => {
                     <div className="bg-white rounded-xl p-6 max-w-md w-full border border-gray-200">
                         <h3 className="font-bold text-gray-900 text-lg mb-2">Close Session</h3>
                         <p className="text-sm text-gray-500 mb-4">
-                            All active negotiations will be ended. You can optionally award a supplier.
+                            {isSplitAwardSession
+                                ? 'Assign one supplier per RFQ line item to complete a split award. Any supplier without awarded lines will receive a non-award closeout.'
+                                : 'All active negotiations will be ended. You can optionally award a supplier.'}
                         </p>
-                        <Label className="text-xs">Award Supplier (optional)</Label>
-                        <select
-                            value={awardSupplier}
-                            onChange={e => setAwardSupplier(e.target.value)}
-                            className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
-                        >
-                            <option value="">No award</option>
-                            {negotiations?.map(n => {
-                                const s = supplierMap.get(n.supplier_id)
-                                return (
-                                    <option key={n.supplier_id} value={n.supplier_id}>
-                                        {s?.name || n.supplier_id.slice(0, 8)}
-                                        {n.agreed_price ? ` — $${n.agreed_price}` : ''}
-                                    </option>
-                                )
-                            })}
-                        </select>
-                        <div className="flex gap-2 mt-4">
-                            <Button className="bg-[#1A4A7A] flex-1" onClick={() => {
-                                doSessionAction(closeSession, { id, awarded_supplier_id: awardSupplier || undefined, reason: 'Manual close' }, 'Session closed')
-                                setShowCloseModal(false)
-                            }}>
-                                Confirm Close
-                            </Button>
-                            <Button variant="outline" onClick={() => setShowCloseModal(false)}>Cancel</Button>
-                        </div>
+                        {isSplitAwardSession ? (
+                            <div className="space-y-3 max-h-[55vh] overflow-y-auto pr-1">
+                                {rfq?.line_items?.map((line: any) => (
+                                    <div key={line.id} className="rounded-lg border border-gray-200 p-3">
+                                        <p className="text-sm font-semibold text-gray-900">
+                                            {line.line_number}. {line.item_name}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mb-2">
+                                            Qty {line.quantity ?? '—'}{line.unit ? ` ${line.unit}` : ''}
+                                        </p>
+                                        <select
+                                            value={splitAwardSelections[line.id] || ''}
+                                            onChange={e => setSplitAwardSelections(prev => ({ ...prev, [line.id]: e.target.value }))}
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                        >
+                                            <option value="">Select awarded supplier</option>
+                                            {negotiations?.map((n) => {
+                                                const s = supplierMap.get(n.supplier_id)
+                                                const lineQuote = bafoBoard?.rows
+                                                    ?.find((row) => row.supplier_id === n.supplier_id)
+                                                    ?.line_items?.find((entry) => entry.line_number === line.line_number)
+                                                return (
+                                                    <option key={`${line.id}-${n.supplier_id}`} value={n.supplier_id}>
+                                                        {s?.name || n.supplier_id.slice(0, 8)}
+                                                        {lineQuote?.total_price != null ? ` — ${bafoBoard?.currency || constraints?.currency || 'USD'} ${Number(lineQuote.total_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ''}
+                                                    </option>
+                                                )
+                                            })}
+                                        </select>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <>
+                                <Label className="text-xs">Award Supplier (optional)</Label>
+                                <select
+                                    value={awardSupplier}
+                                    onChange={e => setAwardSupplier(e.target.value)}
+                                    className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                                >
+                                    <option value="">No award</option>
+                                    {negotiations?.map(n => {
+                                        const s = supplierMap.get(n.supplier_id)
+                                        return (
+                                            <option key={n.supplier_id} value={n.supplier_id}>
+                                                {s?.name || n.supplier_id.slice(0, 8)}
+                                                {n.agreed_price ? ` — $${n.agreed_price}` : ''}
+                                            </option>
+                                        )
+                                    })}
+                                </select>
+                            </>
+                        )}
+                        {(() => {
+                            const totalLines = rfq?.line_items?.length ?? 0
+                            const filledLines = isSplitAwardSession
+                                ? (rfq?.line_items ?? []).filter((line: any) => splitAwardSelections[line.id]).length
+                                : 0
+                            const splitIncomplete = isSplitAwardSession && filledLines < totalLines
+                            return (
+                                <>
+                                    {isSplitAwardSession && (
+                                        <p className={`text-xs mt-2 ${splitIncomplete ? 'text-amber-700' : 'text-emerald-700'}`}>
+                                            {filledLines} of {totalLines} line items have an awarded supplier.
+                                        </p>
+                                    )}
+                                    <div className="flex gap-2 mt-4">
+                                        <Button
+                                            className="bg-primary flex-1"
+                                            disabled={splitIncomplete}
+                                            onClick={() => {
+                                                const line_awards = isSplitAwardSession
+                                                    ? (rfq?.line_items ?? []).map((line: any) => ({
+                                                        rfq_line_item_id: line.id,
+                                                        supplier_id: splitAwardSelections[line.id],
+                                                    }))
+                                                    : undefined
+                                                doSessionAction(
+                                                    closeSession,
+                                                    {
+                                                        id,
+                                                        awarded_supplier_id: isSplitAwardSession ? undefined : awardSupplier || undefined,
+                                                        line_awards,
+                                                        reason: isSplitAwardSession ? 'Split-award closeout' : 'Manual close',
+                                                    },
+                                                    isSplitAwardSession ? 'Split award completed' : 'Session closed'
+                                                )
+                                                setShowCloseModal(false)
+                                            }}
+                                        >
+                                            {isSplitAwardSession ? 'Confirm Split Award' : 'Confirm Close'}
+                                        </Button>
+                                        <Button variant="outline" onClick={() => setShowCloseModal(false)}>Cancel</Button>
+                                    </div>
+                                </>
+                            )
+                        })()}
                     </div>
                 </div>
             )}
@@ -392,7 +1218,7 @@ const NegotiationSummary = () => {
                             </div>
                             <div className="flex gap-2">
                                 <Button
-                                    className="bg-[#1A4A7A] flex-1"
+                                    className="bg-primary flex-1"
                                     onClick={() => {
                                         doSessionAction(startNegotiating, id, 'Negotiating phase started')
                                         setShowStartNegotiatingModal(false)
@@ -407,16 +1233,169 @@ const NegotiationSummary = () => {
                 )
             })()}
 
-            {/* ── Constraints ──────────────────────────────────────────── */}
-            {constraints && (
-                <ConstraintsPanel sessionId={id} constraints={constraints} refetch={refetchConstraints} isTerminal={isTerminal} rfq={rfq} />
-            )}
-            {!constraints && session.status === 'awaiting_constraints' && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3 text-sm text-yellow-800">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    No constraints set. Set constraints to activate this session.
+            {/* ── Delete session confirmation modal ─────────────────────── */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl p-6 max-w-md w-full border border-gray-200">
+                        <h3 className="font-bold text-gray-900 text-lg mb-2 flex items-center gap-2">
+                            <Trash2 className="h-4 w-4 text-red-600" />
+                            Delete session permanently?
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-4">
+                            This permanently removes <span className="font-medium">{session.title}</span> and all of its data.
+                            Only sessions that have never been activated can be deleted.
+                            For active sessions, use <span className="font-medium">Cancel</span> instead.
+                        </p>
+                        <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800 mb-4">
+                            This action cannot be undone.
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                className="bg-red-600 hover:bg-red-700 text-white flex-1"
+                                disabled={deleteSession.isPending}
+                                onClick={async () => {
+                                    try {
+                                        await deleteSession.mutateAsync(id)
+                                        toast.success('Session deleted')
+                                        setShowDeleteConfirm(false)
+                                        router.push('/user/negotiation')
+                                    } catch (err: any) {
+                                        toast.error(getApiError(err, 'Failed to delete session'))
+                                    }
+                                }}
+                            >
+                                {deleteSession.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                                Delete Permanently
+                            </Button>
+                            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+                        </div>
+                    </div>
                 </div>
             )}
+
+            {/* ── Add suppliers modal ──────────────────────────────────── */}
+            {showAddSuppliersModal && (() => {
+                const existingSupplierIds = new Set((negotiations ?? []).map(n => n.supplier_id))
+                const available = (suppliers ?? []).filter(s => !existingSupplierIds.has(s.id))
+                const toggle = (sid: string) => {
+                    setAddSupplierSelections(prev => {
+                        const next = new Set(prev)
+                        if (next.has(sid)) next.delete(sid); else next.add(sid)
+                        return next
+                    })
+                }
+                return (
+                    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                        <div className="bg-white rounded-xl p-6 max-w-lg w-full border border-gray-200">
+                            <h3 className="font-bold text-gray-900 text-lg mb-2 flex items-center gap-2">
+                                <Plus className="h-4 w-4 text-primary" />
+                                Add suppliers to this session
+                            </h3>
+                            <p className="text-sm text-gray-500 mb-4">
+                                New suppliers start as <span className="font-medium">Pending</span>. Once the RFQ is sent, they'll receive it on the same terms as everyone else.
+                            </p>
+                            {available.length === 0 ? (
+                                <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-sm text-gray-500 text-center">
+                                    All your suppliers are already in this session.
+                                    <div className="mt-2">
+                                        <Link href="/user/ecosystem/suppliers" className="text-primary hover:underline text-xs">
+                                            Add a new supplier in Ecosystem →
+                                        </Link>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="max-h-[50vh] overflow-y-auto space-y-1 pr-1 mb-4">
+                                    {available.map(s => {
+                                        const checked = addSupplierSelections.has(s.id)
+                                        return (
+                                            <label
+                                                key={s.id}
+                                                className={`flex items-center gap-3 rounded-lg border px-3 py-2 cursor-pointer transition ${
+                                                    checked
+                                                        ? 'border-primary/40 bg-primary/5'
+                                                        : 'border-gray-200 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <input
+                                                    type="checkbox"
+                                                    className="h-4 w-4 accent-primary"
+                                                    checked={checked}
+                                                    onChange={() => toggle(s.id)}
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="text-sm font-medium text-gray-900 truncate">{s.name}</p>
+                                                    <p className="text-xs text-gray-500 truncate">{s.email}</p>
+                                                </div>
+                                            </label>
+                                        )
+                                    })}
+                                </div>
+                            )}
+                            <div className="flex gap-2">
+                                <Button
+                                    className="bg-primary hover:bg-primary-hover text-white flex-1"
+                                    disabled={addSuppliersToSession.isPending || addSupplierSelections.size === 0}
+                                    onClick={async () => {
+                                        try {
+                                            await addSuppliersToSession.mutateAsync({
+                                                id,
+                                                supplier_ids: Array.from(addSupplierSelections),
+                                            })
+                                            toast.success(`Added ${addSupplierSelections.size} supplier${addSupplierSelections.size === 1 ? '' : 's'}`)
+                                            setShowAddSuppliersModal(false)
+                                            setAddSupplierSelections(new Set())
+                                            refetchNegotiations()
+                                        } catch (err: any) {
+                                            toast.error(getApiError(err, 'Failed to add suppliers'))
+                                        }
+                                    }}
+                                >
+                                    {addSuppliersToSession.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />}
+                                    Add {addSupplierSelections.size > 0 ? `(${addSupplierSelections.size})` : ''}
+                                </Button>
+                                <Button variant="outline" onClick={() => setShowAddSuppliersModal(false)}>Cancel</Button>
+                            </div>
+                        </div>
+                    </div>
+                )
+            })()}
+
+            {/* ── Constraints ──────────────────────────────────────────── */}
+            {constraints && (
+                <div id="constraints" className="scroll-mt-20">
+                    <ConstraintsPanel sessionId={id} constraints={constraints} refetch={refetchConstraints} isTerminal={isTerminal} rfq={rfq} />
+                </div>
+            )}
+            {!constraints && session.status === 'awaiting_constraints' && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 text-sm text-yellow-800">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <div>
+                            <p className="font-medium">No constraints set. Set constraints to activate this session.</p>
+                            <p className="text-xs text-yellow-700 mt-0.5">
+                                Resume the saved setup flow to confirm pricing, currency, approval mode, timeout, late-response policy, and other buyer rules.
+                            </p>
+                        </div>
+                    </div>
+                    <Link href={`/user/negotiation/new?session=${id}`} className="shrink-0">
+                        <Button size="sm" className="bg-primary hover:bg-primary/90 text-white gap-1.5">
+                            Resume Setup
+                            <ExternalLink className="h-3.5 w-3.5" />
+                        </Button>
+                    </Link>
+                </div>
+            )}
+
+            <SessionWorkflowInspector
+                session={session}
+                constraints={constraints}
+                negotiations={negotiations ?? []}
+                bafoBoard={bafoBoard}
+                awardSummary={awardSummary}
+                rfq={rfq}
+            />
+
+            <CompetitiveIntelligencePanel intelligence={competitiveIntelligence} />
 
             {session.status === 'active' && session.negotiation_phase === 'collection' && (
                 <CollectionStatusPanel
@@ -425,6 +1404,24 @@ const NegotiationSummary = () => {
                     supplierMap={supplierMap}
                     deadline={collectionDeadline}
                 />
+            )}
+
+            {bafoBoard && session.negotiation_phase === 'bafo' && (
+                <BAFOBoardPanel
+                    sessionId={id}
+                    board={bafoBoard}
+                    onAfterAction={() => {
+                        refetchSession()
+                        refetchNegotiations()
+                        refetchBAFOBoard()
+                        refetchCompetitiveIntelligence()
+                        refetchAwardSummary()
+                    }}
+                />
+            )}
+
+            {awardSummary && awardSummary.rows.length > 0 && (
+                <SplitAwardSummaryPanel summary={awardSummary} />
             )}
 
             {/* ── RFQ / Items ───────────────────────────────────────────── */}
@@ -476,49 +1473,20 @@ const NegotiationSummary = () => {
                             </div>
                         )}
 
-                        {isMultiItemRfq && (
-                            <div className="rounded-xl border border-blue-100 bg-blue-50/70 px-4 py-3">
-                                <div className="flex items-center justify-between gap-3 mb-2">
-                                    <p className="text-[10px] font-semibold text-blue-600">Negotiation Scope</p>
-                                    <span className="text-[11px] text-blue-700">Full comparison lives inside each supplier timeline</span>
-                                </div>
-                                <div className="space-y-2">
-                                    {linePreview.map((item: any) => (
-                                        <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/90 px-3 py-2">
-                                            <div className="min-w-0">
-                                                <p className="text-sm font-medium text-gray-900 truncate">
-                                                    {item.line_number}. {item.item_name}
-                                                </p>
-                                                <p className="text-xs text-gray-500">
-                                                    Qty {item.quantity ?? '—'}{item.unit ? ` ${item.unit}` : ''}
-                                                </p>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2 text-[11px]">
-                                                {item.target_price_per_unit != null && (
-                                                    <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
-                                                        Target {fmt(item.target_price_per_unit)}
-                                                    </span>
-                                                )}
-                                                {item.max_price_per_unit != null && (
-                                                    <span className="rounded-full bg-red-50 px-2 py-1 text-red-700">
-                                                        Max {fmt(item.max_price_per_unit)}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
-                                    {rfq.line_items.length > linePreview.length && (
-                                        <p className="text-xs text-blue-700">
-                                            +{rfq.line_items.length - linePreview.length} more items below
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        )}
                     </div>
 
                     <RFQLineItemsPanel sessionId={id} rfq={rfq} isTerminal={isTerminal} />
                 </div>
+            )}
+
+            {/* ── Supplier Lane Overview — only worth showing for 3+ suppliers,
+                 below that the row list immediately below is faster to scan. */}
+            {(negotiations?.length ?? 0) >= 3 && (
+                <SupplierLanesGrid
+                    negotiations={negotiations ?? []}
+                    supplierMap={supplierMap}
+                    sessionId={id}
+                />
             )}
 
             {/* ── Negotiations ─────────────────────────────────────────── */}
@@ -529,6 +1497,18 @@ const NegotiationSummary = () => {
                         Suppliers
                         <span className="text-muted-foreground text-sm font-normal ml-1">{negotiations?.length ?? 0}</span>
                     </h3>
+                    {!isTerminal && session.status !== 'cancelled' && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                                setAddSupplierSelections(new Set())
+                                setShowAddSuppliersModal(true)
+                            }}
+                        >
+                            <Plus className="h-3 w-3 mr-1" /> Add Suppliers
+                        </Button>
+                    )}
                 </div>
                 {!negotiations?.length ? (
                     <div className="p-8 text-center text-gray-400 text-sm">
@@ -741,7 +1721,7 @@ function ConstraintsPanel({ sessionId, constraints, refetch, isTerminal, rfq }: 
         { label: 'Approval', value: constraints.approval_mode },
         { label: 'Max Rounds', value: String(constraints.max_rounds) },
         { label: 'Price Buffer', value: `${(constraints.max_price_buffer * 100).toFixed(0)}%` },
-        { label: 'Early Close', value: constraints.early_close_enabled ? `Yes (${(constraints.early_close_threshold * 100).toFixed(0)}%)` : 'Off' },
+        { label: 'Auto-accept near target', value: constraints.early_close_enabled ? `Within ${(constraints.early_close_threshold * 100).toFixed(0)}% of target` : 'Off' },
         { label: 'Timeout', value: `${constraints.supplier_timeout_hours}h` },
         { label: 'Counter Offers', value: constraints.allow_counter_offers ? 'Allowed' : 'No' },
         { label: 'Lead Time', value: constraints.delivery_lead_time_working_days != null ? `${constraints.delivery_lead_time_working_days} days` : '—' },
@@ -763,7 +1743,7 @@ function ConstraintsPanel({ sessionId, constraints, refetch, isTerminal, rfq }: 
                 )}
                 {editing && (
                     <div className="flex gap-2">
-                        <Button size="sm" className="bg-[#1A4A7A] h-7 text-xs" onClick={handleSave} disabled={updateConstraints.isPending}>
+                        <Button size="sm" className="bg-primary h-7 text-xs" onClick={handleSave} disabled={updateConstraints.isPending}>
                             {updateConstraints.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
                         </Button>
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setEditing(false)}>Cancel</Button>
@@ -781,7 +1761,7 @@ function ConstraintsPanel({ sessionId, constraints, refetch, isTerminal, rfq }: 
                 {tiles.map(({ label, value, accent }: { label: string; value: string; accent?: boolean }) => (
                     <div key={label} className={`p-2.5 rounded-lg ${accent ? 'bg-blue-50' : 'bg-gray-50'}`}>
                         <p className="text-[10px] text-gray-500 mb-0.5">{label}</p>
-                        <p className={`font-bold text-sm capitalize ${accent ? 'text-[#1A4A7A]' : 'text-gray-800'}`}>{value}</p>
+                        <p className={`font-bold text-sm capitalize ${accent ? 'text-primary' : 'text-gray-800'}`}>{value}</p>
                     </div>
                 ))}
             </div>
@@ -832,8 +1812,11 @@ function RFQLineItemsPanel({ sessionId, rfq, isTerminal }: { sessionId: string; 
 
     return (
         <div className="p-4">
-            <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-gray-500">Line Items ({rfq.line_items.length})</p>
+            <div className="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                <div>
+                    <p className="text-xs font-semibold text-gray-700">Line Items <span className="text-gray-400 font-normal">({rfq.line_items.length})</span></p>
+                    <p className="text-[11px] text-gray-400 mt-0.5">Negotiation scope. Per-supplier comparison lives in each supplier timeline.</p>
+                </div>
                 {!isTerminal && !editing && (
                     <Button variant="ghost" size="sm" className="h-6 px-2 text-xs text-gray-500 border border-gray-200" onClick={startEdit}>
                         <Pencil className="h-3 w-3 mr-1" /> Edit Prices
@@ -841,7 +1824,7 @@ function RFQLineItemsPanel({ sessionId, rfq, isTerminal }: { sessionId: string; 
                 )}
                 {editing && (
                     <div className="flex gap-2">
-                        <Button size="sm" className="bg-[#1A4A7A] h-6 text-xs px-3" onClick={handleSave} disabled={updateLineItems.isPending}>
+                        <Button size="sm" className="bg-primary h-6 text-xs px-3" onClick={handleSave} disabled={updateLineItems.isPending}>
                             {updateLineItems.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : 'Save'}
                         </Button>
                         <Button size="sm" variant="outline" className="h-6 text-xs px-3" onClick={() => setEditing(false)}>Cancel</Button>
@@ -1063,6 +2046,7 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
     const [overrideMsg, setOverrideMsg] = useState('')
     const [overridePrice, setOverridePrice] = useState('')
     const [overrideQty, setOverrideQty] = useState('')
+    const [approvalAttachments, setApprovalAttachments] = useState<File[]>([])
     const [showAccept, setShowAccept] = useState(false)
     const [acceptPrice, setAcceptPrice] = useState('')
     const [acceptQty, setAcceptQty] = useState('')
@@ -1075,6 +2059,28 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
         } catch (err: any) {
             toast.error(err?.response?.data?.detail || `Failed: ${label}`)
         }
+    }
+
+    const buildAttachmentPayloads = async () => {
+        return Promise.all(approvalAttachments.map(file => new Promise<{
+            content: string
+            content_type: string
+            filename: string
+            size: number
+        }>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+                const value = String(reader.result || '')
+                resolve({
+                    content: value.includes(',') ? value.split(',')[1] : value,
+                    content_type: file.type || 'application/octet-stream',
+                    filename: file.name,
+                    size: file.size,
+                })
+            }
+            reader.onerror = reject
+            reader.readAsDataURL(file)
+        })))
     }
 
     const pending = negotiation.pending_counteroffer
@@ -1091,6 +2097,16 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
     const lastInboundId = isHardViolation
         ? [...(messages ?? [])].filter(m => m.direction === 'inbound').at(-1)?.id
         : null
+
+    useEffect(() => {
+        if (!canApprove || !pending?.message) return
+        setOverrideMsg(pending.message)
+    }, [canApprove, pending?.message])
+
+    useEffect(() => {
+        if (canApprove) return
+        setApprovalAttachments([])
+    }, [canApprove])
 
     return (
         <div className="px-6 pb-6 border-t border-border bg-muted/20">
@@ -1173,16 +2189,24 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
                         )}
                     </div>
 
-                    {/* AI message draft */}
+                    {/* Editable draft */}
                     {pending.message && (
-                        <div className="bg-background/40 border border-white/10 rounded-xl p-4 mb-4 backdrop-blur-sm">
-                            <p className="text-[10px] text-muted-foreground mb-2">Message to Supplier</p>
-                            <p className="text-[13px] text-foreground/90 whitespace-pre-wrap leading-relaxed font-light">{pending.message}</p>
+                        <div className="mb-4">
+                            <Label className="text-[10px] text-muted-foreground mb-1.5 block">Message to Supplier</Label>
+                            <Textarea
+                                value={overrideMsg}
+                                onChange={e => setOverrideMsg(e.target.value)}
+                                rows={8}
+                                className="text-[13px] bg-background/50 border-white/10 focus-visible:ring-primary/20 leading-relaxed"
+                            />
+                            <p className="mt-1.5 text-[10px] text-muted-foreground">
+                                Edit this draft before approving. Leave it unchanged to send the AI version.
+                            </p>
                         </div>
                     )}
 
                     {/* Override fields */}
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                         <div>
                             <Label className="text-[10px] text-muted-foreground mb-1.5 block">Override Price (optional)</Label>
                             <Input
@@ -1201,14 +2225,49 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
                                 className="h-9 text-[13px] bg-background/50 border-white/10 focus-visible:ring-primary/20"
                             />
                         </div>
-                        <div>
-                            <Label className="text-[10px] text-muted-foreground mb-1.5 block">Override Reasoning (optional)</Label>
-                            <Input
-                                placeholder="Inject manual prompt"
-                                value={overrideMsg} onChange={e => setOverrideMsg(e.target.value)}
-                                className="h-9 text-[13px] bg-background/50 border-white/10 focus-visible:ring-primary/20"
-                            />
+                    </div>
+
+                    <div className="mb-4 rounded-xl border border-white/10 bg-background/30 p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                            <div>
+                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Attachments</p>
+                                <p className="text-[11px] text-muted-foreground">Attach supporting files to this supplier reply.</p>
+                            </div>
+                            <label className="inline-flex items-center justify-center gap-2 rounded-md border border-white/10 bg-background/50 px-3 py-2 text-[11px] font-medium text-foreground hover:bg-background cursor-pointer">
+                                <Paperclip className="h-3.5 w-3.5" />
+                                Add files
+                                <input
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={e => {
+                                        const files = Array.from(e.target.files ?? [])
+                                        setApprovalAttachments(prev => [...prev, ...files])
+                                        e.currentTarget.value = ''
+                                    }}
+                                />
+                            </label>
                         </div>
+                        {approvalAttachments.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {approvalAttachments.map((file, idx) => (
+                                    <div key={`${file.name}-${file.size}-${idx}`} className="flex items-center justify-between gap-3 rounded-md border border-white/10 bg-background/40 px-3 py-2">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-[12px] text-foreground">{file.name}</p>
+                                            <p className="text-[10px] text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setApprovalAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                            className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                            aria-label={`Remove ${file.name}`}
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex gap-3">
@@ -1216,13 +2275,14 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
                             size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 text-[11px]"
                             disabled={approveCounter.isPending}
                             onClick={() => do_(
-                                () => approveCounter.mutateAsync({
+                                async () => approveCounter.mutateAsync({
                                     id: negotiation.id,
                                     data: {
                                         approved: true,
-                                        override_message: overrideMsg || undefined,
+                                        override_message: overrideMsg && overrideMsg !== pending.message ? overrideMsg : undefined,
                                         override_price: overridePrice ? parseFloat(overridePrice) : undefined,
                                         override_quantity: overrideQty ? parseInt(overrideQty) : undefined,
+                                        attachments: approvalAttachments.length ? await buildAttachmentPayloads() : undefined,
                                     },
                                 }),
                                 'Authorization Confirmed'
@@ -1255,13 +2315,13 @@ function NegotiationDetail({ negotiation, supplier, refetch }: {
                     </Button>
                 )}
                 {canPause && (
-                    <Button size="sm" variant="outline" className="font-mono text-[11px] text-[#1A4A7A] border-[#1A4A7A]/30 hover:bg-[#1A4A7A]/10 hover:text-[#1A4A7A] gap-2"
+                    <Button size="sm" variant="outline" className="font-mono text-[11px] text-primary border-primary/30 hover:bg-primary/10 hover:text-primary gap-2"
                         onClick={() => do_(() => pauseNeg.mutateAsync({ id: negotiation.id }), 'Routine Paused')}>
                         <Pause className="h-3 w-3" /> Halt
                     </Button>
                 )}
                 {canResume && (
-                    <Button size="sm" variant="outline" className="font-mono text-[11px] text-[#1A4A7A] border-[#1A4A7A]/30 hover:bg-[#1A4A7A]/10 hover:text-[#1A4A7A] gap-2"
+                    <Button size="sm" variant="outline" className="font-mono text-[11px] text-primary border-primary/30 hover:bg-primary/10 hover:text-primary gap-2"
                         onClick={() => do_(() => resumeNeg.mutateAsync(negotiation.id), 'Routine Resumed')}>
                         <RotateCcw className="h-3 w-3" /> Resume
                     </Button>

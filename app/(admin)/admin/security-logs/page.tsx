@@ -18,7 +18,7 @@ const page = () => {
                         </p>
                     </div>
                     <div className="flex-shrink-0 ml-8">
-                        <button className="cursor-pointer gap-2 bg-[#1A4A7A] text-white px-6 py-3 rounded-lg font-normal text-base transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center">
+                        <button className="cursor-pointer gap-2 bg-primary text-white px-6 py-3 rounded-lg font-normal text-base transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center">
                             <ArrowUpFromLine size={18} />
                             Export Logs
                         </button>

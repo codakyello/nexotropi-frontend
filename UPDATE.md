@@ -76,10 +76,9 @@
 
 #### 1.6 Update RFQ approve endpoint
 - [ ] `POST /sessions/{session_id}/rfq/approve`
-  - Write path (TipTap content): send as rich HTML email body, no PDF attachment
-  - Upload path (uploaded file): attach original file + simple cover email body
-  - Keep WeasyPrint PDF generation as optional (for users who explicitly want PDF output)
-  - Priority: `user_html` (user-written TipTap) → `uploaded_file` → existing fallback
+  - Upload path only: attach original branded RFQ file + simple cover email body
+  - Suppliers should receive the buyer's original RFQ document unchanged
+  - Keep WeasyPrint PDF generation only as a legacy/system fallback, not the primary RFQ creation path
 
 #### 1.7 Update Session creation
 - [ ] Make `description` field optional in `NegotiationSession` model and `POST /sessions` schema
@@ -101,12 +100,11 @@
   - On submit: `POST /sessions` (creates session + pending negotiations)
 
 - [ ] **Step 2 — Your RFQ**
-  - Two tabs: "Write" (TipTap editor) / "Upload" (file input — PDF, DOCX)
-  - Write tab: full TipTap editor with formatting toolbar
-  - Upload tab: drag-and-drop file zone, shows filename on success
-  - On continue: call `POST /sessions/{id}/rfq/extract` with content/file
+  - Upload-only file input for the buyer's branded RFQ document
+  - Drag-and-drop file zone, shows filename on success
+  - On continue: call file extraction endpoint with the uploaded document
   - Show loading state while AI extracts ("Analysing your RFQ...")
-  - On error: show message, allow retry (don't block progress)
+  - On missing required RFQ fields: hard-block and require corrected document reupload
 
 - [ ] **Step 3 — Confirm & Parameters**
   - Section A: "Extracted from your document"
@@ -127,7 +125,7 @@
     - Navigate to session detail page
 
 #### 2.2 Update service hooks in `negotiation.ts`
-- [ ] Add `useExtractRFQ()` — POST /sessions/{id}/rfq/extract
+- [ ] Keep `useExtractRFQ()` only for legacy/API compatibility; the new wizard uses file extraction
 - [ ] Update `useCreateRFQ()` — accept `content` instead of description
 - [ ] Update `useCreateSession()` — make description optional
 - [ ] Add `ExtractedField` and `RFQExtractionResult` TypeScript interfaces

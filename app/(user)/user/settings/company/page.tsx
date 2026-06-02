@@ -117,7 +117,7 @@ export default function CompanyProfilePage() {
       </button>
 
       <div className="flex items-center gap-3 mb-2">
-        <Building2 className="h-6 w-6 text-[#1A4A7A]" />
+        <Building2 className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-gray-900">{isNew ? "Create" : "Edit"} Company Profile</h1>
       </div>
       <p className="text-sm text-gray-500 mb-6">
@@ -230,7 +230,7 @@ export default function CompanyProfilePage() {
       </div>
 
       <div className="flex justify-end mt-6">
-        <Button onClick={handleSave} disabled={createProfile.isPending || updateProfile.isPending} className="bg-[#1A4A7A]">
+        <Button onClick={handleSave} disabled={createProfile.isPending || updateProfile.isPending} className="bg-primary">
           {(createProfile.isPending || updateProfile.isPending) ? "Saving..." : isNew ? "Create Profile" : "Save Changes"}
         </Button>
       </div>

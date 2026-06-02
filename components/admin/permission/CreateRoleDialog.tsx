@@ -195,7 +195,7 @@ const CreateNewRole = ({ open, onOpenChange }: any) => {
                     </button>
                     <button
                         onClick={handleCreateRole}
-                        className="px-6 py-2.5 bg-[#1A4A7A] text-white rounded-lg font-medium hover:bg-[#153d66] transition-colors"
+                        className="px-6 py-2.5 bg-primary text-white rounded-lg font-medium hover:bg-primary transition-colors"
                     >
                         Create role
                     </button>

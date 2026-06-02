@@ -1,41 +1,26 @@
-import PageLayout from "../../layout/PageLayout";
+import React from 'react'
+import PageLayout from '../../layout/PageLayout'
 
-interface HeroSectionProps {
-    title: string;
-    subtitle: string;
-    showButtons?: boolean;
+interface ContactHeroProps {
+    title: string
+    subtitle: string
 }
 
-const ContactHero: React.FC<HeroSectionProps> = ({
-    title,
-    subtitle,
-    showButtons = false
-}) => {
+const ContactHero: React.FC<ContactHeroProps> = ({ title, subtitle }) => {
     return (
         <PageLayout>
-            <section className="relative z-10 px-6 pt-32 pb-60">
-                <div className="max-w-4xl mx-auto text-center text-white">
-                    <h1 className="text-4xl font-bold mb-6 leading-tight">
+            <section className="relative z-10 px-6 py-20 md:py-32">
+                <div className="max-w-6xl mx-auto text-center sm:mt-6 text-white">
+                    <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                         {title}
                     </h1>
-                    <p className="text-xl text-gray-200 mb-8 leading-relaxed max-w-3xl mx-auto">
+                    <p className="text-xl md:text-2xl font-normal mb-8 max-w-3xl mx-auto text-gray-200">
                         {subtitle}
                     </p>
-
-                    {showButtons && (
-                        <div className="flex flex-row gap-4 justify-center items-center">
-                            <button className="bg-white text-gray-900 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors">
-                                Join Waitlist
-                            </button>
-                            <button className="border border-white text-white px-8 py-3 rounded-lg font-medium hover:bg-white hover:text-purple-900 transition-colors">
-                                Learn More
-                            </button>
-                        </div>
-                    )}
                 </div>
             </section>
         </PageLayout>
-    );
-};
+    )
+}
 
-export default ContactHero;
+export default ContactHero

@@ -118,7 +118,7 @@ const VerifyTokenContent = () => {
                     </p>
                     <button
                         onClick={() => router.push(`/auth/reset-password?email=${encodeURIComponent(emailFromUrl)}`)}
-                        className="w-full bg-[#2B5A8E] cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm"
+                        className="w-full bg-primary cursor-pointer hover:bg-primary text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm"
                     >
                         Continue to Reset Password
                     </button>
@@ -140,7 +140,7 @@ const VerifyTokenContent = () => {
 
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <Mail className="w-8 h-8 text-[#2B5A8E]" />
+                        <Mail className="w-8 h-8 text-primary" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-3">
                         Reset Your Password
@@ -199,7 +199,7 @@ const VerifyTokenContent = () => {
                     <button
                         onClick={handleSubmit}
                         disabled={isVerifying || isResending || code.some(digit => digit === '')}
-                        className="w-full bg-[#2B5A8E] justify-center flex cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-primary justify-center flex cursor-pointer hover:bg-primary text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {isVerifying ? <Loader2 className='animate-spin w-5 h-5' /> : 'Verify Code'}
                     </button>
@@ -211,7 +211,7 @@ const VerifyTokenContent = () => {
                             <button
                                 onClick={handleResendCode}
                                 disabled={isVerifying || isResending}
-                                className="text-[#2B5A8E] hover:text-[#234a75] font-medium transition-colors disabled:opacity-50"
+                                className="text-primary hover:text-primary font-medium transition-colors disabled:opacity-50"
                             >
                                 {isResending ? 'Resending...' : 'Resend Code'}
                             </button>
@@ -233,7 +233,7 @@ export default function VerifyTokenPage() {
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
                 <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-sm p-8 md:p-12">
                     <div className="text-center">
-                        <Loader2 className="w-8 h-8 animate-spin text-[#2B5A8E] mx-auto" />
+                        <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
                     </div>
                 </div>
             </div>

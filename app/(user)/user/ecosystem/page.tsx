@@ -23,19 +23,19 @@ const page = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <Link
                     href="/user/ecosystem/suppliers"
-                    className="bg-white rounded-lg p-6 border border-gray-200 hover:border-[#1A4A7A] hover:shadow-sm transition-all group"
+                    className="bg-white rounded-lg p-6 border border-gray-200 hover:border-primary hover:shadow-sm transition-all group"
                 >
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 bg-[#E8EDF2] rounded-lg flex items-center justify-center">
-                                <Users className="h-5 w-5 text-[#1A4A7A]" />
+                                <Users className="h-5 w-5 text-primary" />
                             </div>
                             <div>
                                 <p className="font-semibold text-gray-900">Suppliers</p>
                                 <p className="text-sm text-gray-500">Manage your supplier network</p>
                             </div>
                         </div>
-                        <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-[#1A4A7A] transition-colors" />
+                        <ArrowRight className="h-5 w-5 text-gray-400 group-hover:text-primary transition-colors" />
                     </div>
                 </Link>
             </div>

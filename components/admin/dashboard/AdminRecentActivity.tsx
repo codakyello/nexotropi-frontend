@@ -37,7 +37,7 @@ const AdminRecentActivity = () => {
                 {/* Header */}
                 <div className="px-4 flex items-center justify-between mb-6">
                     <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
-                    <button className="flex items-center text-[#1A4A7A] cursor-pointer font-medium transition-colors duration-200 group">
+                    <button className="flex items-center text-primary cursor-pointer font-medium transition-colors duration-200 group">
                         <span className="mr-2">View All Activity</span>
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
                     </button>

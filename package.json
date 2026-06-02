@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 next dev --turbopack",
-    "prod": "NEXT_PUBLIC_API_BASE_URL=https://api-dev.nexotropi.com next dev --turbopack",
-    "build": "next build --turbopack",
+    "dev": "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000 next dev",
+    "prod": "NEXT_PUBLIC_API_BASE_URL=https://api-dev.nexotropi.com next dev",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint"
   },

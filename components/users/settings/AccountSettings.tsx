@@ -132,7 +132,7 @@ export default function AccountSettings() {
                         </button>
                         <button
                             onClick={handleSaveChanges}
-                            className="px-6 py-2 bg-[#1A4A7A] cursor-pointer text-white rounded-lg transition"
+                            className="px-6 py-2 bg-primary cursor-pointer text-white rounded-lg transition"
                         >
                             Save changes
                         </button>

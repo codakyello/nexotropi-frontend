@@ -81,7 +81,7 @@ const OverviewMetricsChart = () => {
                                         key={range}
                                         onClick={() => setTimeRange(range)}
                                         className={`px-4 py-2 rounded-none transition-colors ${timeRange === range
-                                            ? 'bg-[#1A4A7A] text-white'
+                                            ? 'bg-primary text-white'
                                             : 'text-gray-400 hover:text-gray-600'
                                             }`}
                                     >
@@ -135,7 +135,7 @@ const OverviewMetricsChart = () => {
                                         key={range}
                                         onClick={() => setTimeRange(range)}
                                         className={`px-4 py-2 rounded-none transition-colors ${timeRange === range
-                                            ? 'bg-[#1A4A7A] text-white'
+                                            ? 'bg-primary text-white'
                                             : 'text-gray-400 hover:text-gray-600'
                                             }`}
                                     >

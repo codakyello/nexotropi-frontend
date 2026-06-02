@@ -135,7 +135,7 @@ const ProblemSectionManager = ({ activeTab, setActiveTab }: ProblemSectionManage
                         {activeTab === 'drafts' && (
                             <button
                                 onClick={handlePublishDraft}
-                                className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-[#1A4A7A] text-white rounded hover:bg-[#153a5f]"
+                                className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-primary text-white rounded hover:bg-primary"
                             >
                                 <ExternalLink size={16} />
                                 Publish
@@ -273,7 +273,7 @@ const ProblemSectionManager = ({ activeTab, setActiveTab }: ProblemSectionManage
                             </button>
                             <button
                                 onClick={handlePreview}
-                                className="px-6 py-2 bg-[#1A4A7A] cursor-pointer text-white rounded-md hover:bg-[#153a5f]"
+                                className="px-6 py-2 bg-primary cursor-pointer text-white rounded-md hover:bg-primary"
                             >
                                 Preview
                             </button>
@@ -332,7 +332,7 @@ const ProblemSectionManager = ({ activeTab, setActiveTab }: ProblemSectionManage
                         </button>
                         <button
                             onClick={handlePublish}
-                            className="px-6 py-2 bg-[#1A4A7A] cursor-pointer text-white rounded-md hover:bg-[#153a5f]"
+                            className="px-6 py-2 bg-primary cursor-pointer text-white rounded-md hover:bg-primary"
                         >
                             Publish
                         </button>

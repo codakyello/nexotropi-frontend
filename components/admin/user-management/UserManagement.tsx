@@ -277,7 +277,7 @@ const UserManagement = () => {
                 {activeTab === 'admin' && (
                     <button
                         onClick={() => setShowCreateAdminDialog(true)}
-                        className="flex cursor-pointer items-center gap-2 px-6 py-2 bg-[#1A4A7A] text-white rounded-lg hover:bg-[#153a5f] transition-colors"
+                        className="flex cursor-pointer items-center gap-2 px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary transition-colors"
                     >
                         <Plus size={20} />
                         Create admin
@@ -424,7 +424,7 @@ const UserManagement = () => {
                                     key={i + 1}
                                     onClick={() => handlePageChange(i + 1)}
                                     className={`px-4 py-2 text-sm rounded-lg ${currentPage === i + 1
-                                        ? 'bg-[#1A4A7A] text-white'
+                                        ? 'bg-primary text-white'
                                         : 'text-gray-700 hover:bg-gray-100'
                                         }`}
                                 >
@@ -522,7 +522,7 @@ const UserManagement = () => {
                         <button
                             onClick={handleCreateAdmin}
                             disabled={!formData.fullName || !formData.email}
-                            className="flex-1 px-6 py-3 bg-[#1A4A7A] text-white rounded-lg hover:bg-[#153a5f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Create admin
                         </button>
@@ -675,7 +675,7 @@ const UserManagement = () => {
                         <button
                             onClick={handleUpdateUser}
                             disabled={!editFormData.fullName || !editFormData.email}
-                            className="flex-1 px-6 py-3 bg-[#1A4A7A] text-white rounded-lg hover:bg-[#153a5f] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Update User
                         </button>

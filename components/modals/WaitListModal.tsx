@@ -211,11 +211,11 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                 <div className="space-y-1">
                                     <Label htmlFor="agreeToTerms" className="text-sm text-gray-700">
                                         I agree to the{' '}
-                                        <Link href="terms-of-service" className="underline text-[#1A4A7A]">
+                                        <Link href="terms-of-service" className="underline text-primary">
                                             Terms of Service
                                         </Link>{' '}
                                         and{' '}
-                                        <Link href="/privacy" className="underline text-[#1A4A7A]">
+                                        <Link href="/privacy" className="underline text-primary">
                                             Privacy Policy
                                         </Link>
                                         .*
@@ -229,7 +229,7 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                             {/* Submit Button */}
                             <Button
                                 type="submit"
-                                className="w-full py-5 px-4 rounded-md cursor-pointer font-medium text-white mt-6 bg-[#1A4A7A] hover:bg-[#153d65]"
+                                className="w-full py-5 px-4 rounded-md cursor-pointer font-medium text-white mt-6 bg-primary hover:bg-primary"
                                 disabled={isSubmitting || waitlistMutation.isPending}
                             >
                                 {isSubmitting || waitlistMutation.isPending ? 'Submitting...' : 'Join Waitlist'}
@@ -274,7 +274,7 @@ const WaitlistModal: React.FC<WaitlistModalProps> = ({ isOpen, onClose }) => {
                                     description: 'Share this with your friends and colleagues.',
                                 });
                             }}
-                            className="w-full py-3 px-4 rounded-md font-medium mb-2 bg-[#1A4A7A] text-white hover:bg-[#153d65]"
+                            className="w-full py-3 px-4 rounded-md font-medium mb-2 bg-primary text-white hover:bg-primary"
                         >
                             Share with friends
                         </Button>

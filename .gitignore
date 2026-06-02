@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Internal / private docs — only README.md is public
+AGENTS.md
+UPDATE.md

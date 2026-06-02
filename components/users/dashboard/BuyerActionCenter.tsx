@@ -17,6 +17,7 @@ const ACTION_LABEL: Record<string, string> = {
     manual_review: 'Review',
     clarification_required: 'Clarification',
     constraints_required: 'Setup',
+    late_quote_decision: 'Late Quote',
 }
 
 function formatDate(value: string | null) {
@@ -47,7 +48,7 @@ const BuyerActionCenter = () => {
             <div className="px-6 py-5 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                 <div>
                     <div className="flex items-center gap-2">
-                        <AlertCircle className="h-5 w-5 text-[#1A4A7A]" />
+                        <AlertCircle className="h-5 w-5 text-primary" />
                         <h2 className="text-2xl font-bold text-gray-900">Buyer action center</h2>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
@@ -56,7 +57,7 @@ const BuyerActionCenter = () => {
                 </div>
                 <button
                     onClick={() => router.push('/user/negotiation')}
-                    className="flex items-center text-[#1A4A7A] font-medium text-sm group"
+                    className="flex items-center text-primary font-medium text-sm group"
                 >
                     {items.length > 5 ? `Showing 5 of ${items.length}` : 'View all sessions'}
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
@@ -70,7 +71,7 @@ const BuyerActionCenter = () => {
             ) : isError ? (
                 <div className="px-6 py-8 text-center">
                     <p className="text-sm text-gray-500">Unable to load buyer actions right now.</p>
-                    <button onClick={() => refetch()} className="mt-3 text-sm text-[#1A4A7A] underline">
+                    <button onClick={() => refetch()} className="mt-3 text-sm text-primary underline">
                         Retry
                     </button>
                 </div>
@@ -110,7 +111,7 @@ const BuyerActionCenter = () => {
                                         <Clock className="h-3.5 w-3.5" />
                                         {formatDate(item.created_at)}
                                     </span>
-                                    <span className="text-sm font-medium text-[#1A4A7A] flex items-center">
+                                    <span className="text-sm font-medium text-primary flex items-center">
                                         {item.cta_label}
                                         <ArrowRight className="ml-1.5 h-4 w-4" />
                                     </span>
@@ -121,7 +122,7 @@ const BuyerActionCenter = () => {
                     {hiddenCount > 0 && (
                         <button
                             onClick={() => router.push('/user/negotiation')}
-                            className="w-full px-6 py-4 text-left bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-[#1A4A7A] font-medium"
+                            className="w-full px-6 py-4 text-left bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-primary font-medium"
                         >
                             {hiddenCount} more action item{hiddenCount === 1 ? '' : 's'} hidden here. Open all sessions to review the rest.
                         </button>

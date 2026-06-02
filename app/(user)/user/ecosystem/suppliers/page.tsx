@@ -154,7 +154,7 @@ function SupplierDialog({
                             <Label className="text-xs text-gray-600">Industry <span className="text-red-500">*</span></Label>
                             <button
                                 onClick={() => setShowNewIndustry(v => !v)}
-                                className="text-xs text-[#1A4A7A] hover:underline"
+                                className="text-xs text-primary hover:underline"
                             >
                                 {showNewIndustry ? 'Cancel' : '+ New industry'}
                             </button>
@@ -173,7 +173,7 @@ function SupplierDialog({
                                     size="sm"
                                     onClick={handleAddIndustry}
                                     disabled={createIndustry.isPending}
-                                    className="bg-[#1A4A7A] shrink-0"
+                                    className="bg-primary shrink-0"
                                 >
                                     {createIndustry.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Add'}
                                 </Button>
@@ -182,7 +182,7 @@ function SupplierDialog({
                             <select
                                 value={form.industry_id}
                                 onChange={e => set('industry_id', e.target.value)}
-                                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1A4A7A]"
+                                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             >
                                 <option value="">Select industry…</option>
                                 {loadingIndustries
@@ -202,7 +202,7 @@ function SupplierDialog({
                             <select
                                 value={form.status}
                                 onChange={e => set('status', e.target.value)}
-                                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1A4A7A]"
+                                className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                             >
                                 <option value="active">Active</option>
                                 <option value="inactive">Inactive</option>
@@ -218,13 +218,13 @@ function SupplierDialog({
                             onChange={e => set('notes', e.target.value)}
                             placeholder="Any notes about this supplier…"
                             rows={3}
-                            className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[#1A4A7A] resize-none"
+                            className="mt-1 w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary resize-none"
                         />
                     </div>
 
                     <div className="flex justify-end gap-2 pt-1">
                         <Button variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button onClick={handleSubmit} disabled={saving} className="bg-[#1A4A7A]">
+                        <Button onClick={handleSubmit} disabled={saving} className="bg-primary">
                             {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                             {isEdit ? 'Save changes' : 'Add supplier'}
                         </Button>
@@ -280,7 +280,7 @@ export default function SuppliersPage() {
                         {suppliers.length} total · {activeCount} active
                     </p>
                 </div>
-                <Button onClick={openAdd} className="bg-[#1A4A7A] gap-2">
+                <Button onClick={openAdd} className="bg-primary gap-2">
                     <Plus className="h-4 w-4" /> Add Supplier
                 </Button>
             </div>
@@ -301,7 +301,7 @@ export default function SuppliersPage() {
                         <button
                             key={s}
                             onClick={() => setStatusFilter(s)}
-                            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors capitalize ${statusFilter === s ? 'bg-[#1A4A7A] text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                            className={`px-3 py-1 rounded-md text-sm font-medium transition-colors capitalize ${statusFilter === s ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-700'}`}
                         >
                             {s === 'all' ? 'All' : s}
                         </button>
@@ -322,7 +322,7 @@ export default function SuppliersPage() {
                             {search || statusFilter !== 'all' ? 'No suppliers match your filters' : 'No suppliers yet'}
                         </p>
                         {!search && statusFilter === 'all' && (
-                            <Button onClick={openAdd} size="sm" className="mt-4 bg-[#1A4A7A] gap-1.5">
+                            <Button onClick={openAdd} size="sm" className="mt-4 bg-primary gap-1.5">
                                 <Plus className="h-4 w-4" /> Add your first supplier
                             </Button>
                         )}
@@ -355,8 +355,8 @@ export default function SuppliersPage() {
                                     <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                                         <td className="px-5 py-3.5">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-[#1A4A7A]/10 flex items-center justify-center shrink-0">
-                                                    <span className="text-xs font-semibold text-[#1A4A7A]">
+                                                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                                    <span className="text-xs font-semibold text-primary">
                                                         {s.name.charAt(0).toUpperCase()}
                                                     </span>
                                                 </div>

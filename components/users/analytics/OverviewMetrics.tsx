@@ -30,7 +30,7 @@ const OverviewMetrics = () => {
                 <div className="bg-white rounded-xl p-6 border border-gray-100">
                     <div className="flex items-center mb-4">
                         <div className="w-12 h-12 bg-[#E8EDF2] rounded-full flex items-center justify-center mr-4">
-                            <MessageSquare className="w-6 h-6 text-[#1A4A7A]" />
+                            <MessageSquare className="w-6 h-6 text-primary" />
                         </div>
                         <h3 className="text-gray-700 font-medium">Successful Deals (Win)</h3>
                     </div>
@@ -87,7 +87,7 @@ const OverviewMetrics = () => {
                 <div className="bg-white rounded-xl p-6 border border-gray-100">
                     <div className="flex items-center mb-4">
                         <div className="w-12 h-12 bg-[#E8EDF2] rounded-full flex items-center justify-center mr-4">
-                            <MessageSquare className="w-6 h-6 text-[#1A4A7A]" />
+                            <MessageSquare className="w-6 h-6 text-primary" />
                         </div>
                         <h3 className="text-gray-700 font-medium">AI-Secured Savings/Gains</h3>
                     </div>
@@ -143,7 +143,7 @@ const OverviewMetrics = () => {
                 <div className="bg-white rounded-xl p-6 border border-gray-100">
                     <div className="flex items-center mb-4">
                         <div className="w-12 h-12 bg-[#E8EDF2] rounded-full flex items-center justify-center mr-4">
-                            <MessageSquare className="w-6 h-6 text-[#1A4A7A]" />
+                            <MessageSquare className="w-6 h-6 text-primary" />
                         </div>
                         <h3 className="text-gray-700 font-medium">Abandoned/Expired</h3>
                     </div>

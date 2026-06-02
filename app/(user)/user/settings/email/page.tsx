@@ -71,7 +71,7 @@ function EmailSetupContent() {
       </button>
 
       <div className="flex items-center gap-3 mb-6">
-        <Mail className="h-6 w-6 text-[#1A4A7A]" />
+        <Mail className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold text-gray-900">Email Connection</h1>
       </div>
 
@@ -93,7 +93,7 @@ function EmailSetupContent() {
             </p>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={() => refetch()}>Refresh Status</Button>
-              <Button size="sm" className="bg-[#1A4A7A]" onClick={() => handleConnect("google")} disabled={connectNylas.isPending}>
+              <Button size="sm" className="bg-primary" onClick={() => handleConnect("google")} disabled={connectNylas.isPending}>
                 {connectNylas.isPending ? "Connecting..." : "Connect Gmail"}
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleConnect("microsoft")} disabled={connectNylas.isPending}>
@@ -136,7 +136,7 @@ function EmailSetupContent() {
               Connect your email account via Nylas to enable the AI negotiation pipeline. The system will monitor inbound emails, classify them, extract offers, and generate counteroffers.
             </p>
             <div className="flex gap-2">
-              <Button size="sm" className="bg-[#1A4A7A]" onClick={() => handleConnect("google")} disabled={connectNylas.isPending}>
+              <Button size="sm" className="bg-primary" onClick={() => handleConnect("google")} disabled={connectNylas.isPending}>
                 {connectNylas.isPending ? "Connecting..." : "Connect Gmail"}
               </Button>
               <Button size="sm" variant="outline" onClick={() => handleConnect("microsoft")} disabled={connectNylas.isPending}>
@@ -151,23 +151,23 @@ function EmailSetupContent() {
         <h3 className="font-semibold text-gray-900 mb-3">How It Works</h3>
         <div className="space-y-3 text-sm text-gray-600">
           <div className="flex gap-3">
-            <span className="bg-[#1A4A7A] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">1</span>
+            <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">1</span>
             <p><strong>Connect:</strong> Link your email via Nylas OAuth (Gmail or Outlook)</p>
           </div>
           <div className="flex gap-3">
-            <span className="bg-[#1A4A7A] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">2</span>
+            <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">2</span>
             <p><strong>Classify:</strong> AI reads every inbound email and classifies it (quote, clarification, rejection, etc.)</p>
           </div>
           <div className="flex gap-3">
-            <span className="bg-[#1A4A7A] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">3</span>
+            <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">3</span>
             <p><strong>Extract:</strong> For quotes, AI extracts pricing, quantity, delivery terms from the email</p>
           </div>
           <div className="flex gap-3">
-            <span className="bg-[#1A4A7A] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">4</span>
+            <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">4</span>
             <p><strong>Negotiate:</strong> AI generates counteroffers based on your strategy and constraints</p>
           </div>
           <div className="flex gap-3">
-            <span className="bg-[#1A4A7A] text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">5</span>
+            <span className="bg-primary text-white w-6 h-6 rounded-full flex items-center justify-center text-xs shrink-0">5</span>
             <p><strong>Review:</strong> In manual mode, you approve each reply before it&apos;s sent</p>
           </div>
         </div>

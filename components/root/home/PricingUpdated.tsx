@@ -46,26 +46,26 @@ const PricingUpdated = () => {
 
                         <div className="space-y-4 mb-8">
                             <div className="flex items-start space-x-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1A4A7A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <Check className="w-3 h-3 text-white" />
                                 </div>
                                 <span className="text-gray-700">Core replication</span>
                             </div>
                             <div className="flex items-start space-x-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1A4A7A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <Check className="w-3 h-3 text-white" />
                                 </div>
                                 <span className="text-gray-700">Single-module focus</span>
                             </div>
                             <div className="flex items-start space-x-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1A4A7A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <Check className="w-3 h-3 text-white" />
                                 </div>
                                 <span className="text-gray-700">Unlimited two-party negotiation</span>
                             </div>
                         </div>
 
-                        <button onClick={scrollToContact} className="w-full py-3 px-6 border-2 border-[#1A4A7A] text-[#1A4A7A] cursor-pointer rounded-lg font-medium hover:bg-[#1A4A7A] hover:text-white transition-colors">
+                        <button onClick={scrollToContact} className="w-full py-3 px-6 border-2 border-primary text-primary cursor-pointer rounded-lg font-medium hover:bg-primary hover:text-white transition-colors">
                             Contact Sales
                         </button>
                     </div>
@@ -139,26 +139,26 @@ const PricingUpdated = () => {
 
                         <div className="space-y-4 mb-8">
                             <div className="flex items-start space-x-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1A4A7A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <Check className="w-3 h-3 text-white" />
                                 </div>
                                 <span className="text-gray-700">Custom AI training</span>
                             </div>
                             <div className="flex items-start space-x-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1A4A7A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <Check className="w-3 h-3 text-white" />
                                 </div>
                                 <span className="text-gray-700">Fine-tuning</span>
                             </div>
                             <div className="flex items-start space-x-3">
-                                <div className="w-5 h-5 rounded-full bg-[#1A4A7A] flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-0.5">
                                     <Check className="w-3 h-3 text-white" />
                                 </div>
                                 <span className="text-gray-700">Consulting</span>
                             </div>
                         </div>
 
-                        <button onClick={scrollToContact} className="w-full py-3 cursor-pointer z-50 px-6 border-2 border-[#1A4A7A] text-[#1A4A7A] rounded-lg font-medium hover:bg-[#1A4A7A] hover:text-white transition-colors">
+                        <button onClick={scrollToContact} className="w-full py-3 cursor-pointer z-50 px-6 border-2 border-primary text-primary rounded-lg font-medium hover:bg-primary hover:text-white transition-colors">
                             Contact Sales
                         </button>
                     </div>

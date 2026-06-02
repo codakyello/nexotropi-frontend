@@ -21,7 +21,7 @@ const page = () => {
 
                     {/* Right CTA Button */}
                     <div className="flex-shrink-0 ml-8">
-                        <Link href="/user/negotiation" className="cursor-pointer bg-[#1A4A7A] text-white px-6 py-3 rounded-lg font-normal text-base transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center">
+                        <Link href="/user/negotiation" className="cursor-pointer bg-primary text-white px-6 py-3 rounded-lg font-normal text-base transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center">
                             Go to Negotiations
                         </Link>
                     </div>

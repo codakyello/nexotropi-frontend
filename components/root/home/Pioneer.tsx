@@ -22,7 +22,7 @@ export default function Pioneer() {
                             waitlist for exclusive access and help us shape the future of B2B.
                         </p>
 
-                        <button onClick={() => router.push("/auth/sign-up")} className="bg-[#1A4A7A] cursor-pointer text-white font-semibold px-8 py-4 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl">
+                        <button onClick={() => router.push("/auth/sign-up")} className="bg-primary cursor-pointer text-white font-semibold px-8 py-4 rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl">
                             Get Started
                         </button>
                     </div>

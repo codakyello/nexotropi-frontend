@@ -91,7 +91,7 @@ const WaitlistAdminPage: React.FC = () => {
         return (
             <div className="bg-white min-h-screen flex items-center justify-center">
                 <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="h-8 w-8 animate-spin text-[#1A4A7A]" />
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     <p className="text-gray-600">Loading waitlist entries...</p>
                 </div>
             </div>
@@ -138,7 +138,7 @@ const WaitlistAdminPage: React.FC = () => {
                                 placeholder="Search waitlist"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent text-gray-900"
+                                className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-gray-900"
                             />
                         </div>
 
@@ -147,7 +147,7 @@ const WaitlistAdminPage: React.FC = () => {
                             <select
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value as WaitlistStatus | 'all')}
-                                className="appearance-none w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] bg-white cursor-pointer text-gray-900"
+                                className="appearance-none w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-white cursor-pointer text-gray-900"
                             >
                                 <option value="all">All Users</option>
                                 {/* <option value="waitlisted">Waitlisted</option>
@@ -246,7 +246,7 @@ const WaitlistAdminPage: React.FC = () => {
                                                 key={page}
                                                 onClick={() => setCurrentPage(page)}
                                                 className={`px-4 py-2 rounded-lg text-sm transition-colors ${currentPage === page
-                                                    ? 'bg-[#1A4A7A] text-white'
+                                                    ? 'bg-primary text-white'
                                                     : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
                                                     }`}
                                             >

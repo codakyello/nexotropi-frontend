@@ -111,7 +111,7 @@ export default function LoginPage() {
                                 checked={rememberMe}
                                 onChange={(e) => setRememberMe(e.target.checked)}
                                 disabled={isPending}
-                                className="w-4 h-4 accent-[#1A4A7A] border-gray-300 rounded focus:ring-2 disabled:opacity-50"
+                                className="w-4 h-4 accent-primary border-gray-300 rounded focus:ring-2 disabled:opacity-50"
                             />
                             <span className="ml-2 text-sm text-gray-700">Remember me</span>
                         </label>
@@ -119,7 +119,7 @@ export default function LoginPage() {
                             type="button"
                             onClick={() => router.push("/auth/forgot-password")}
                             disabled={isPending}
-                            className="text-sm cursor-pointer text-[#1A4A7A] hover:text-[#1A4A7A] font-medium transition-colors disabled:opacity-50"
+                            className="text-sm cursor-pointer text-primary hover:text-primary font-medium transition-colors disabled:opacity-50"
                         >
                             Forgot Password
                         </button>
@@ -128,7 +128,7 @@ export default function LoginPage() {
                     <button
                         type="submit"
                         disabled={isPending || !email || !password}
-                        className="w-full bg-[#2B5A8E] cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-primary cursor-pointer hover:bg-primary text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isPending ? (
                             <>
@@ -168,7 +168,7 @@ export default function LoginPage() {
                     Don't have an account?{' '}
                     <Link
                         href="/auth/sign-up"
-                        className="text-[#1A4A7A] hover:text-[#1A4A7A] font-medium transition-colors disabled:opacity-50"
+                        className="text-primary hover:text-primary font-medium transition-colors disabled:opacity-50"
                     >
                         Sign Up
                     </Link>

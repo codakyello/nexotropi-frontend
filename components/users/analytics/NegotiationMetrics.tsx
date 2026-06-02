@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useSessions, Session } from '@/services/requests/negotiation';
 
 const STATUS_COLOR: Record<string, string> = {
+    awaiting_rfq: 'bg-sky-50 text-sky-700',
     active: 'bg-blue-50 text-blue-700',
     paused: 'bg-orange-50 text-orange-600',
     ended: 'bg-green-50 text-green-700',
@@ -22,7 +23,7 @@ function buildMonthlyChart(sessions: Session[]) {
         const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         const label = d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
         if (!counts[key]) counts[key] = { month: label, active: 0, ended: 0, cancelled: 0 }
-        if (s.status === 'active' || s.status === 'paused' || s.status === 'awaiting_constraints') counts[key].active++
+        if (s.status === 'active' || s.status === 'paused' || s.status === 'awaiting_rfq' || s.status === 'awaiting_constraints') counts[key].active++
         else if (s.status === 'ended') counts[key].ended++
         else if (s.status === 'cancelled') counts[key].cancelled++
     })
@@ -49,7 +50,7 @@ const NegotiationMetrics = () => {
     const active = all.filter((s) => s.status === 'active').length
     const ended = all.filter((s) => s.status === 'ended').length
     const cancelled = all.filter((s) => s.status === 'cancelled').length
-    const awaiting = all.filter((s) => s.status === 'awaiting_constraints' || s.status === 'paused').length
+    const awaiting = all.filter((s) => s.status === 'awaiting_rfq' || s.status === 'awaiting_constraints' || s.status === 'paused').length
     const completionRate = all.length > 0 ? Math.round((ended / all.length) * 100) : 0
 
     const chartData = buildMonthlyChart(all)

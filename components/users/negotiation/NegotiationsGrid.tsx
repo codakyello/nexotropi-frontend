@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import { useSessions, Session } from '@/services/requests/negotiation';
 
 const STATUS_COLOR: Record<string, string> = {
+    awaiting_rfq: 'border-sky-500/30 bg-sky-500/10 text-sky-600',
     active: 'border-primary/30 bg-primary/10 text-primary shadow-[0_0_10px_0_var(--color-primary)]/10',
     paused: 'border-orange-500/30 bg-orange-500/10 text-orange-500',
     ended: 'border-green-500/30 bg-green-500/10 text-green-500',
@@ -19,6 +20,7 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 const PROGRESS_COLOR: Record<string, string> = {
+    awaiting_rfq: 'bg-sky-500',
     active: 'bg-primary shadow-[0_0_10px_0_var(--color-primary)]',
     paused: 'bg-orange-500',
     ended: 'bg-green-500',
@@ -32,9 +34,26 @@ const PHASE_PROGRESS: Record<string, number> = {
     bafo: 85,
 }
 
+const sessionProgress = (session: Session) => {
+    if (session.status === 'awaiting_rfq') return 5
+    if (session.status === 'awaiting_constraints') return 15
+    if (session.status === 'ended' || session.status === 'cancelled') return 100
+    return PHASE_PROGRESS[session.negotiation_phase] ?? 10
+}
+
 const NegotiationsGrid = () => {
     const router = useRouter()
     const { data: sessions, isLoading } = useSessions()
+    const sessionTarget = (session: Session) =>
+        session.status === 'awaiting_rfq' || session.status === 'awaiting_constraints'
+            ? `/user/negotiation/new?session=${session.id}`
+            : `/user/negotiation/${session.id}`
+    const sessionActionLabel = (session: Session) =>
+        session.status === 'awaiting_rfq'
+            ? 'Upload RFQ'
+            : session.status === 'awaiting_constraints'
+                ? 'Resume Setup'
+                : 'Analyze'
 
     if (isLoading) {
         return (
@@ -64,9 +83,7 @@ const NegotiationsGrid = () => {
             <div className="max-w-7xl mx-auto">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {sessions.map((session: Session) => {
-                        const progress = session.status === 'ended' ? 100
-                            : session.status === 'cancelled' ? 100
-                            : PHASE_PROGRESS[session.negotiation_phase] ?? 10
+                        const progress = sessionProgress(session)
 
                         return (
                             <div key={session.id} className="group relative bg-card/40 backdrop-blur-3xl rounded-2xl p-7 border border-white/5 shadow-[0_8px_32px_0_rgba(0,0,0,0.1)] ring-1 ring-inset ring-white/5 transition-all duration-500 hover:bg-white/5 hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(0,0,0,0.2)]">
@@ -81,8 +98,8 @@ const NegotiationsGrid = () => {
                                             <EllipsisVertical className="w-5 h-5 text-muted-foreground cursor-pointer hover:text-foreground transition-colors" />
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl">
-                                            <DropdownMenuItem onClick={() => router.push(`/user/negotiation/${session.id}`)} className="flex cursor-pointer items-center gap-2 hover:bg-accent/50">
-                                                <Eye className="w-4 h-4" /> View telemetry
+                                            <DropdownMenuItem onClick={() => router.push(sessionTarget(session))} className="flex cursor-pointer items-center gap-2 hover:bg-accent/50">
+                                                <Eye className="w-4 h-4" /> {session.status === 'awaiting_rfq' ? 'Upload RFQ' : session.status === 'awaiting_constraints' ? 'Resume setup' : 'View telemetry'}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -113,10 +130,10 @@ const NegotiationsGrid = () => {
                                 </div>
 
                                 <button
-                                    onClick={() => router.push(`/user/negotiation/${session.id}`)}
+                                    onClick={() => router.push(sessionTarget(session))}
                                     className="relative z-10 w-full py-3.5 cursor-pointer font-mono text-[11px] uppercase tracking-widest font-bold border rounded-xl text-foreground bg-white/5 border-white/10 hover:bg-primary/20 hover:border-primary/30 hover:text-primary transition-all duration-300"
                                 >
-                                    Analyze
+                                    {sessionActionLabel(session)}
                                 </button>
                             </div>
                         )

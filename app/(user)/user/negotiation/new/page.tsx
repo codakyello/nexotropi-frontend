@@ -1,12 +1,13 @@
 "use client"
 import NegotiationForm from '@/components/users/negotiation/NegotiationForm'
-import NegotiationSummary from '@/components/users/negotiation/NegotiationSummary'
 import { ArrowLeft } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import React from 'react'
 
 const StartNegotiationPage = () => {
     const router = useRouter()
+    const searchParams = useSearchParams()
+    const isResumeSetup = Boolean(searchParams?.get('session'))
     return (
         <div className='bg-gray-50 px-4 pb-10'>
             <div className="mb-6">
@@ -18,8 +19,14 @@ const StartNegotiationPage = () => {
 
             {/* Title and Status Section */}
             <div className="flex flex-col gap-2 mb-10">
-                <h1 className="text-2xl font-bold text-gray-900">Start New Negotiations</h1>
-                <p className="text-sm font-normal text-gray-600">Monitor and control AI-driven negotiations in real-time.</p>
+                <h1 className="text-2xl font-bold text-gray-900">
+                    {isResumeSetup ? 'Continue Setup' : 'Start New Negotiations'}
+                </h1>
+                <p className="text-sm font-normal text-gray-600">
+                    {isResumeSetup
+                        ? 'Pick up your saved draft and finish the RFQ and buyer rules.'
+                        : 'Monitor and control AI-driven negotiations in real-time.'}
+                </p>
             </div>
             <NegotiationForm />
         </div>

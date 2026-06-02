@@ -27,7 +27,7 @@ const ContentManagement = () => {
                     <button
                         onClick={() => setActiveTab('published')}
                         className={`p-3 cursor-pointer rounded-sm ${activeTab === 'published'
-                            ? 'bg-[#E8EDF2] text-[#1A4A7A] font-medium'
+                            ? 'bg-[#E8EDF2] text-primary font-medium'
                             : 'text-gray-600 hover:text-gray-900'
                             }`}
                     >
@@ -36,7 +36,7 @@ const ContentManagement = () => {
                     <button
                         onClick={() => setActiveTab('drafts')}
                         className={`py-3 px-6 cursor-pointer rounded-sm ${activeTab === 'drafts'
-                            ? 'bg-[#E8EDF2] text-[#1A4A7A] font-medium'
+                            ? 'bg-[#E8EDF2] text-primary font-medium'
                             : 'text-gray-600 hover:text-gray-900'
                             }`}
                     >

@@ -8,10 +8,8 @@ export default function UserLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <body suppressHydrationWarning>
-            <UserPrivateRoute>
-                <UserDashboardLayout>{children}</UserDashboardLayout>
-            </UserPrivateRoute>
-        </body>
+        <UserPrivateRoute>
+            <UserDashboardLayout>{children}</UserDashboardLayout>
+        </UserPrivateRoute>
     );
 }

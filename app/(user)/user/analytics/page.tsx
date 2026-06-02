@@ -72,7 +72,7 @@ const AnalyticsPage = () => {
                         </div>
 
                         {/* Export Button */}
-                        <button className="flex items-center gap-2 px-6 py-2.5 cursor-pointer bg-[#1A4A7A] text-white rounded-lg font-medium transition-colors shadow-sm">
+                        <button className="flex items-center gap-2 px-6 py-2.5 cursor-pointer bg-primary text-white rounded-lg font-medium transition-colors shadow-sm">
                             <Upload className="w-4 h-4" />
                             Export Reports
                         </button>

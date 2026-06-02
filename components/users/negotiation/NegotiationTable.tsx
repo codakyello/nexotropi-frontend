@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useSessions, Session } from '@/services/requests/negotiation';
 
 const STATUS_BADGE: Record<string, string> = {
+    awaiting_rfq: 'border-sky-500/30 bg-sky-500/10 text-sky-600',
     active: 'border-primary/30 bg-primary/10 text-primary',
     paused: 'border-orange-500/30 bg-orange-500/10 text-orange-500',
     ended: 'border-green-500/30 bg-green-500/10 text-green-500',
@@ -22,9 +23,20 @@ const PHASE_PROGRESS: Record<string, number> = {
     bafo: 85,
 }
 
+const sessionProgress = (session: Session) => {
+    if (session.status === 'awaiting_rfq') return 5
+    if (session.status === 'awaiting_constraints') return 15
+    if (session.status === 'ended' || session.status === 'cancelled') return 100
+    return PHASE_PROGRESS[session.negotiation_phase] ?? 10
+}
+
 const NegotiationTable = () => {
     const router = useRouter()
     const { data: sessions, isLoading } = useSessions()
+    const sessionTarget = (session: Session) =>
+        session.status === 'awaiting_rfq' || session.status === 'awaiting_constraints'
+            ? `/user/negotiation/new?session=${session.id}`
+            : `/user/negotiation/${session.id}`
 
     if (isLoading) {
         return (
@@ -61,12 +73,10 @@ const NegotiationTable = () => {
                 </TableHeader>
                 <TableBody>
                     {sessions.map((s: Session) => {
-                        const progress = s.status === 'ended' ? 100
-                            : s.status === 'cancelled' ? 100
-                            : PHASE_PROGRESS[s.negotiation_phase] ?? 10
+                        const progress = sessionProgress(s)
 
                         return (
-                            <TableRow key={s.id} className="border-b border-border/20 hover:bg-white/5 cursor-pointer transition-colors group" onClick={() => router.push(`/user/negotiation/${s.id}`)}>
+                            <TableRow key={s.id} className="border-b border-border/20 hover:bg-white/5 cursor-pointer transition-colors group" onClick={() => router.push(sessionTarget(s))}>
                                 <TableCell className="py-4">
                                     <p className="font-medium text-foreground text-[14px] group-hover:text-primary transition-colors">{s.title}</p>
                                     {s.description && (
@@ -103,8 +113,8 @@ const NegotiationTable = () => {
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end" className="w-44 bg-background/95 backdrop-blur-xl border-border/50 shadow-2xl rounded-xl">
-                                            <DropdownMenuItem onClick={() => router.push(`/user/negotiation/${s.id}`)} className="flex items-center gap-2 text-foreground font-mono text-[12px] uppercase tracking-wider hover:bg-accent/50 cursor-pointer">
-                                                <Eye className="h-4 w-4" /> View log
+                                            <DropdownMenuItem onClick={() => router.push(sessionTarget(s))} className="flex items-center gap-2 text-foreground font-mono text-[12px] uppercase tracking-wider hover:bg-accent/50 cursor-pointer">
+                                                <Eye className="h-4 w-4" /> {s.status === 'awaiting_rfq' ? 'Upload RFQ' : s.status === 'awaiting_constraints' ? 'Resume setup' : 'View log'}
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>

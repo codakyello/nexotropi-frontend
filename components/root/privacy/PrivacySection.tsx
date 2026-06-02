@@ -41,8 +41,8 @@ const PrivacySection = () => {
                                     <button
                                         key={item.id}
                                         onClick={() => scrollToSection(item.id)}
-                                        className={`block w-full text-left text-sm cursor-pointer transition-colors duration-200 hover:text-[#1A4A7A] ${activeSection === item.id
-                                            ? 'text-[#1A4A7A] font-medium'
+                                        className={`block w-full text-left text-sm cursor-pointer transition-colors duration-200 hover:text-primary ${activeSection === item.id
+                                            ? 'text-primary font-medium'
                                             : 'text-gray-600'
                                             }`}
                                     >
@@ -162,10 +162,10 @@ const PrivacySection = () => {
                                 <div className="bg-blue-50 border border-blue-100 rounded-lg p-6">
                                     <p className="text-gray-900 font-semibold mb-1">Nexotropi, Inc.</p>
                                     <p className="text-gray-700 mb-1">
-                                        <span className="font-medium">Email:</span> <span className="text-[#1A4A7A] font-medium">privacy@nexotropi.com</span>
+                                        <span className="font-medium">Email:</span> <span className="text-primary font-medium">privacy@nexotropi.com</span>
                                     </p>
                                     <p className="text-gray-700">
-                                        <span className="font-medium">Website:</span> <a href="https://www.nexotropi.com" className="text-[#1A4A7A] font-medium hover:underline">https://www.nexotropi.com</a>
+                                        <span className="font-medium">Website:</span> <a href="https://www.nexotropi.com" className="text-primary font-medium hover:underline">https://www.nexotropi.com</a>
                                     </p>
                                 </div>
                             </section>

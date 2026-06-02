@@ -1,47 +1,59 @@
-import React from 'react';
-import { TrendingUp } from 'lucide-react';
+import React from 'react'
+import { ShieldCheck, AlertTriangle, LogIn, Lock } from 'lucide-react'
+
+const metrics = [
+    {
+        label: 'Total Events',
+        value: '—',
+        icon: ShieldCheck,
+        color: 'text-blue-600',
+        bg: 'bg-blue-50',
+    },
+    {
+        label: 'Failed Logins',
+        value: '—',
+        icon: LogIn,
+        color: 'text-red-600',
+        bg: 'bg-red-50',
+    },
+    {
+        label: 'Permission Changes',
+        value: '—',
+        icon: Lock,
+        color: 'text-yellow-600',
+        bg: 'bg-yellow-50',
+    },
+    {
+        label: 'Alerts',
+        value: '—',
+        icon: AlertTriangle,
+        color: 'text-orange-600',
+        bg: 'bg-orange-50',
+    },
+]
 
 const LogMetric = () => {
-  const metrics = [
-    {
-      title: "Total Events Today",
-      value: "156"
-    },
-    {
-      title: "Failed Login Attempts",
-      value: "2,000"
-    },
-    {
-      title: "Permission Changes This Week",
-      value: "2,000"
-    },
-    {
-      title: "New Devices Logged In",
-      value: "2,000"
-    }
-  ];
+    return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-8 pb-6">
+            {metrics.map((metric) => {
+                const Icon = metric.icon
+                return (
+                    <div
+                        key={metric.label}
+                        className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4"
+                    >
+                        <div className={`p-3 rounded-lg ${metric.bg}`}>
+                            <Icon size={20} className={metric.color} />
+                        </div>
+                        <div>
+                            <p className="text-2xl font-bold text-gray-900">{metric.value}</p>
+                            <p className="text-sm text-gray-500">{metric.label}</p>
+                        </div>
+                    </div>
+                )
+            })}
+        </div>
+    )
+}
 
-  return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {metrics.map((metric, index) => (
-          <div key={index} className="bg-white rounded-2xl py-8 px-4 border border-gray-100">
-            <div className="mb-6">
-              <div className="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-emerald-600" />
-              </div>
-            </div>
-            <h3 className="text-gray-800 text-sm font-medium mb-3">
-              {metric.title}
-            </h3>
-            <p className="text-4xl font-bold text-gray-900">
-              {metric.value}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-export default LogMetric;
+export default LogMetric

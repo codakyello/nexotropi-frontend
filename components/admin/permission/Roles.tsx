@@ -7,7 +7,7 @@ const RolesPermissions = () => {
             title: 'Super Admin',
             description: 'Full access to all system features and settings',
             users: null,
-            color: 'border-[#1A4A7A]'
+            color: 'border-primary'
         },
         {
             title: 'Admin',
@@ -25,7 +25,7 @@ const RolesPermissions = () => {
             title: 'Founding Engineer',
             description: 'User management and testing capabilities',
             users: 5,
-            color: 'border-[#1A4A7A]'
+            color: 'border-primary'
         },
         {
             title: 'Read-Only User',
@@ -50,7 +50,7 @@ const RolesPermissions = () => {
                                 {role.users !== null && (
                                     <span className="text-gray-500 text-sm">{role.users} users</span>
                                 )}
-                                <button className="ml-auto cursor-pointer flex items-center gap-2 text-[#1A4A7A] hover:text-[#153a5f] transition-colors">
+                                <button className="ml-auto cursor-pointer flex items-center gap-2 text-primary hover:text-primary transition-colors">
                                     <Edit size={16} />
                                     <span className="font-medium">Edit Role</span>
                                 </button>

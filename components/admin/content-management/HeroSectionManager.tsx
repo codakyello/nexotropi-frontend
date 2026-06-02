@@ -133,7 +133,7 @@ const HeroSectionManager = ({ activeTab, setActiveTab }: HeroSectionManagerProps
                         {activeTab === 'drafts' && (
                             <button
                                 onClick={handlePublishDraft}
-                                className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-[#1A4A7A] text-white rounded hover:bg-[#153a5f]"
+                                className="flex cursor-pointer items-center gap-2 px-4 py-2 bg-primary text-white rounded hover:bg-primary"
                             >
                                 <ExternalLink size={16} />
                                 Publish
@@ -295,7 +295,7 @@ const HeroSectionManager = ({ activeTab, setActiveTab }: HeroSectionManagerProps
                             </button>
                             <button
                                 onClick={handlePreview}
-                                className="px-6 py-2 bg-[#1A4A7A] cursor-pointer text-white rounded-md"
+                                className="px-6 py-2 bg-primary cursor-pointer text-white rounded-md"
                             >
                                 Preview
                             </button>
@@ -366,7 +366,7 @@ const HeroSectionManager = ({ activeTab, setActiveTab }: HeroSectionManagerProps
                         </button>
                         <button
                             onClick={handlePublish}
-                            className="px-6 py-2 bg-[#1A4A7A] cursor-pointer text-white rounded-md"
+                            className="px-6 py-2 bg-primary cursor-pointer text-white rounded-md"
                         >
                             Publish
                         </button>

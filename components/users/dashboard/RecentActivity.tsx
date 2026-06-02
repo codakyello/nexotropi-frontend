@@ -5,16 +5,21 @@ import { useRouter } from 'next/navigation';
 import { useSessions, Session } from '@/services/requests/negotiation';
 
 const STATUS_LABEL: Record<string, string> = {
+    awaiting_rfq: 'Awaiting RFQ upload',
     active: 'Active — AI negotiating',
     paused: 'Paused',
     ended: 'Completed',
     cancelled: 'Cancelled',
-    awaiting_constraints: 'Awaiting setup',
+    awaiting_constraints: 'Awaiting constraints',
 }
 
 const RecentActivity = () => {
     const router = useRouter()
     const { data: sessions, isLoading } = useSessions()
+    const sessionTarget = (session: Session) =>
+        session.status === 'awaiting_rfq' || session.status === 'awaiting_constraints'
+            ? `/user/negotiation/new?session=${session.id}`
+            : `/user/negotiation/${session.id}`
 
     // Show the 5 most recently updated sessions
     const recent = sessions
@@ -29,7 +34,7 @@ const RecentActivity = () => {
                     <h2 className="text-2xl font-bold text-gray-900">Recent Activity</h2>
                     <button
                         onClick={() => router.push('/user/negotiation')}
-                        className="flex items-center text-[#1A4A7A] cursor-pointer font-medium transition-colors duration-200 group"
+                        className="flex items-center text-primary cursor-pointer font-medium transition-colors duration-200 group"
                     >
                         <span className="mr-2">View All</span>
                         <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-200" />
@@ -44,7 +49,7 @@ const RecentActivity = () => {
                     ) : recent.length === 0 ? (
                         <div className="text-center py-10 text-gray-400 text-sm">
                             No sessions yet.{' '}
-                            <button onClick={() => router.push('/user/negotiation/new')} className="text-[#1A4A7A] underline">
+                            <button onClick={() => router.push('/user/negotiation/new')} className="text-primary underline">
                                 Start your first negotiation
                             </button>
                         </div>
@@ -62,7 +67,7 @@ const RecentActivity = () => {
                                 {recent.map((s: Session) => (
                                     <tr
                                         key={s.id}
-                                        onClick={() => router.push(`/user/negotiation/${s.id}`)}
+                                        onClick={() => router.push(sessionTarget(s))}
                                         className="border-b border-gray-100 hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
                                     >
                                         <td className="py-4 px-6">

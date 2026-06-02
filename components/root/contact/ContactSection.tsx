@@ -1,189 +1,171 @@
 "use client"
-import React from 'react';
-import { Mail, Phone, MapPin } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { toast } from 'sonner'; // or your preferred toast library
-import { useContact } from '@/services/requests/contact';
+import React, { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
+import { toast } from 'sonner'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
+import { Label } from '@/components/ui/label'
+import { Mail, Phone, MapPin } from 'lucide-react'
 
-// Zod validation schema
 const contactSchema = z.object({
-    full_name: z.string().min(2, 'Full name must be at least 2 characters'),
-    email: z.string().email('Please enter a valid email address'),
-    organization: z.string().min(2, 'Organization name must be at least 2 characters'),
-    message: z.string().min(10, 'Message must be at least 10 characters')
-});
+    full_name: z.string().min(1, 'Full name is required'),
+    email: z.string().min(1, 'Email is required').email('Please enter a valid email address'),
+    company: z.string().optional(),
+    message: z.string().min(10, 'Message must be at least 10 characters'),
+})
 
-type ContactFormData = z.infer<typeof contactSchema>;
+type ContactFormData = z.infer<typeof contactSchema>
 
 const ContactSection = () => {
-    const { mutate: submitContact, isPending } = useContact();
+    const [submitted, setSubmitted] = useState(false)
 
     const {
         register,
         handleSubmit,
-        formState: { errors },
-        reset
+        reset,
+        formState: { errors, isSubmitting },
     } = useForm<ContactFormData>({
         resolver: zodResolver(contactSchema),
-        defaultValues: {
-            full_name: '',
-            email: '',
-            organization: '',
-            message: ''
-        }
-    });
+    })
 
-    const onSubmit = (data: ContactFormData) => {
-        submitContact(data, {
-            onSuccess: () => {
-                toast.success('Message sent successfully!');
-                reset();
-            },
-            onError: (error: any) => {
-                toast.error(error.response?.data?.detail || 'Failed to send message. Please try again.');
-            }
-        });
-    };
+    const onSubmit = async (data: ContactFormData) => {
+        try {
+            const res = await fetch('/api/v1/contact/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            })
+            if (!res.ok) throw new Error('Failed to send message')
+            setSubmitted(true)
+            reset()
+            toast.success('Message sent! We\'ll be in touch shortly.')
+        } catch {
+            toast.error('Something went wrong. Please try again.')
+        }
+    }
 
     return (
-        <div id="contact" className="min-h-screen py-8 lg:py-16 px-4 sm:px-6 lg:px-10 ">
-            <div className="container mx-auto">
-
-                {/* Main Content Grid - Mobile: Stack vertically with contact first, Desktop: Side by side */}
-                <div className="flex flex-col lg:grid lg:grid-cols-3 gap-6 lg:gap-12 px-8">
-
-                    {/* Get in Touch Section - Order 1 on mobile, Order 1 on desktop */}
-                    <div className="bg-white h-max rounded-xl lg:rounded-2xl col-span-1 p-4 sm:p-6 shadow-lg lg:shadow-2xl order-2 sm:order-1">
-                        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6 lg:mb-8">Get in Touch</h2>
-
-                        <div className="space-y-4 lg:space-y-6">
-                            {/* Email Us */}
-                            <div className="bg-[#E8EDF2] rounded-lg lg:rounded-xl p-4">
-                                <div className="flex items-center mb-3 lg:mb-4">
-                                    <Mail className="w-4 h-4 lg:w-5 lg:h-5 text-gray-600 mr-2 lg:mr-3" />
-                                    <h3 className="font-semibold text-gray-900 text-sm lg:text-base">Email Us</h3>
-                                </div>
-                                <div className="space-y-1 lg:space-y-2 text-nowrap text-xs lg:text-sm text-gray-600">
-                                    <p><span className="font-medium">General Inquiries:</span> founders@nexusforge.ai</p>
-                                </div>
+        <section className="py-16 px-6 bg-white">
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16">
+                {/* Contact info */}
+                <div>
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">Get in touch</h2>
+                    <p className="text-gray-500 mb-10 leading-relaxed">
+                        Have a question or want to learn more about Nexotropi? Fill out the form and our team will get back to you within one business day.
+                    </p>
+                    <div className="space-y-6">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                                <Mail size={20} className="text-primary" />
                             </div>
-
-                            {/* Call Us */}
-                            <div className="bg-[#E8EDF2] rounded-lg lg:rounded-xl p-4 lg:p-6">
-                                <div className="flex items-center mb-3 lg:mb-4">
-                                    <Phone className="w-4 h-4 lg:w-5 lg:h-5 text-gray-600 mr-2 lg:mr-3" />
-                                    <h3 className="font-semibold text-gray-900 text-sm lg:text-base">Call Us</h3>
-                                </div>
-                                <div className="space-y-1 lg:space-y-2 text-xs lg:text-sm text-gray-600">
-                                    <span> 469-251-6652</span>
-                                </div>
+                            <div>
+                                <p className="font-medium text-gray-900">Email</p>
+                                <p className="text-gray-500 text-sm">hello@nexotropi.com</p>
                             </div>
-
-                            {/* Visit Us */}
-                            <div className="bg-[#E8EDF2] rounded-lg lg:rounded-xl p-4 lg:p-6">
-                                <div className="flex items-center mb-3 lg:mb-4">
-                                    <MapPin className="w-4 h-4 lg:w-5 lg:h-5 text-gray-600 mr-2 lg:mr-3" />
-                                    <h3 className="font-semibold text-gray-900 text-sm lg:text-base">Visit us</h3>
-                                </div>
-                                <div className="text-xs lg:text-sm text-gray-600">
-                                    <p className="font-medium mb-1">Headquarters:</p>
-                                    <p>123 Innovation Drive,</p>
-                                    <p>San Francisco, CA, 94105, USA</p>
-                                </div>
+                        </div>
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                                <Phone size={20} className="text-primary" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-gray-900">Phone</p>
+                                <p className="text-gray-500 text-sm">Available on request</p>
+                            </div>
+                        </div>
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                                <MapPin size={20} className="text-primary" />
+                            </div>
+                            <div>
+                                <p className="font-medium text-gray-900">Location</p>
+                                <p className="text-gray-500 text-sm">Remote-first, global team</p>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    {/* Contact Form - Order 2 on mobile, Order 2 on desktop */}
-                    <div className="bg-white col-span-2 rounded-xl lg:rounded-2xl p-6 lg:p-8 shadow-lg lg:shadow-2xl order-1 sm:order-2">
-                        <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-6 lg:mb-8">Contact form</h2>
-
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 lg:space-y-6">
-                            {/* Full Name */}
+                {/* Form */}
+                <div className="bg-gray-50 rounded-2xl p-8">
+                    {submitted ? (
+                        <div className="text-center py-12">
+                            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <Mail size={28} className="text-green-600" />
+                            </div>
+                            <h3 className="text-xl font-semibold text-gray-900 mb-2">Message sent!</h3>
+                            <p className="text-gray-500">We&apos;ll get back to you within one business day.</p>
+                            <Button
+                                className="mt-6"
+                                variant="outline"
+                                onClick={() => setSubmitted(false)}
+                            >
+                                Send another message
+                            </Button>
+                        </div>
+                    ) : (
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Full name*
-                                </label>
-                                <input
-                                    type="text"
+                                <Label htmlFor="full_name">Full name</Label>
+                                <Input
+                                    id="full_name"
+                                    placeholder="Jane Smith"
+                                    className="mt-1"
                                     {...register('full_name')}
-                                    placeholder="Enter Full name"
-                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.full_name ? 'border-red-500' : 'border-gray-200'
-                                        }`}
                                 />
                                 {errors.full_name && (
-                                    <p className="mt-1 text-xs text-red-500">{errors.full_name.message}</p>
+                                    <p className="text-red-500 text-xs mt-1">{errors.full_name.message}</p>
                                 )}
                             </div>
-
-                            {/* Work Email */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Work Email Address*
-                                </label>
-                                <input
+                                <Label htmlFor="email">Work email</Label>
+                                <Input
+                                    id="email"
                                     type="email"
+                                    placeholder="jane@company.com"
+                                    className="mt-1"
                                     {...register('email')}
-                                    placeholder="chioma@kargoo.io"
-                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.email ? 'border-red-500' : 'border-gray-200'
-                                        }`}
                                 />
                                 {errors.email && (
-                                    <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
+                                    <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>
                                 )}
                             </div>
-
-                            {/* Company */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Company / Organization*
-                                </label>
-                                <input
-                                    type="text"
-                                    {...register('organization')}
-                                    placeholder="Enter company name"
-                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.organization ? 'border-red-500' : 'border-gray-200'
-                                        }`}
+                                <Label htmlFor="company">Company <span className="text-gray-400">(optional)</span></Label>
+                                <Input
+                                    id="company"
+                                    placeholder="Acme Corp"
+                                    className="mt-1"
+                                    {...register('company')}
                                 />
-                                {errors.organization && (
-                                    <p className="mt-1 text-xs text-red-500">{errors.organization.message}</p>
-                                )}
                             </div>
-
-                            {/* Message */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Message
-                                </label>
-                                <textarea
-                                    rows={4}
+                                <Label htmlFor="message">Message</Label>
+                                <Textarea
+                                    id="message"
+                                    placeholder="Tell us how we can help..."
+                                    rows={5}
+                                    className="mt-1"
                                     {...register('message')}
-                                    placeholder="Enter message"
-                                    className={`w-full px-3 lg:px-4 py-2.5 lg:py-3 border rounded-lg bg-gray-50 resize-none transition-colors text-sm lg:text-base focus:outline-none focus:ring-2 focus:ring-[#1A4A7A] focus:border-transparent ${errors.message ? 'border-red-500' : 'border-gray-200'
-                                        }`}
                                 />
                                 {errors.message && (
-                                    <p className="mt-1 text-xs text-red-500">{errors.message.message}</p>
+                                    <p className="text-red-500 text-xs mt-1">{errors.message.message}</p>
                                 )}
                             </div>
-
-                            {/* Submit Button */}
-                            <button
+                            <Button
                                 type="submit"
-                                disabled={isPending}
-                                className="w-full bg-[#1A4A7A] cursor-pointer text-white py-3 px-6 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 active:translate-y-0 text-sm lg:text-base disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                className="w-full bg-primary text-white"
+                                disabled={isSubmitting}
                             >
-                                {isPending ? 'Sending...' : 'Send message'}
-                            </button>
+                                {isSubmitting ? 'Sending...' : 'Send message'}
+                            </Button>
                         </form>
-                    </div>
-
+                    )}
                 </div>
             </div>
-        </div>
-    );
-};
+        </section>
+    )
+}
 
-export default ContactSection;
+export default ContactSection

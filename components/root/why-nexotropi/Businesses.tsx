@@ -16,7 +16,7 @@ const Businesses = () => {
 
                     {/* Card 1 - Beyond Traditional Digital Twins */}
                     <div className="bg-white rounded-2xl p-8 border border-gray-100">
-                        <div className="bg-[#1A4A7A] w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                        <div className="bg-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                             <img src="/beyond.svg" />
                         </div>
 
@@ -31,7 +31,7 @@ const Businesses = () => {
 
                     {/* Card 2 - Strategic AI Negotiation */}
                     <div className="bg-white rounded-2xl p-8 border border-gray-100">
-                        <div className="bg-[#1A4A7A] w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                        <div className="bg-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                             <img src="/strategic.svg" />
                         </div>
 
@@ -46,7 +46,7 @@ const Businesses = () => {
 
                     {/* Card 3 - Security First */}
                     <div className="bg-white rounded-2xl p-8 border border-gray-100">
-                        <div className="bg-[#1A4A7A] w-14 h-14 rounded-xl flex items-center justify-center mb-6">
+                        <div className="bg-primary w-14 h-14 rounded-xl flex items-center justify-center mb-6">
                             <img src="/security.svg" />
                         </div>
 

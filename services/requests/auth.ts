@@ -189,7 +189,7 @@ export const useAdminLogin = () => {
         },
         onSuccess: (data) => {
             console.log('Admin login successful:', data.message);
-            router.push("/admin/waitlist");
+            router.push("/admin/dashboard");
         },
         onError: (error: any) => {
             console.error('Admin login error:', error?.response?.data?.detail || error.message);

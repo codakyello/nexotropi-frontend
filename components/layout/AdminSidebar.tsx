@@ -4,11 +4,10 @@ import {
     LayoutDashboard,
     LogOut,
     Settings,
-    Share2,
-    MessageSquare,
-    TrendingUp,
-    FileText,
-    Mail
+    ShieldCheck,
+    Users,
+    Mail,
+    Lock,
 } from 'lucide-react';
 import { useRouter, usePathname } from 'next/navigation';
 import Cookies from 'js-cookie';
@@ -26,6 +25,25 @@ interface MenuSection {
     section: 'main' | 'bottom';
     items: MenuItem[];
 }
+
+const adminMenuItems: MenuSection[] = [
+    {
+        section: 'main',
+        items: [
+            { icon: LayoutDashboard, label: 'Owner Control', href: '/admin/dashboard' },
+            { icon: Mail, label: 'Waitlist', href: '/admin/waitlist' },
+            { icon: Users, label: 'Users', href: '/admin/users' },
+            { icon: ShieldCheck, label: 'Roles', href: '/admin/permission' },
+            { icon: Lock, label: 'Security Logs', href: '/admin/security-logs' },
+        ]
+    },
+    {
+        section: 'bottom',
+        items: [
+            { icon: Settings, label: 'Settings', href: '/admin/settings' },
+        ]
+    }
+];
 
 const AdminSidebar = () => {
     const [activeItem, setActiveItem] = useState('Dashboard');
@@ -56,29 +74,9 @@ const AdminSidebar = () => {
     };
 
 
-    const menuItems: MenuSection[] = [
-        {
-            section: 'main',
-            items: [
-                // { icon: '/dashboard.svg', label: 'Dashboard', href: '/admin/dashboard' },
-                { icon: Mail, label: 'Waitlist', href: '/admin/waitlist' },
-                // { icon: '/menu.svg', label: 'Content Management', href: '/admin/content-management' },
-                // { icon: '/persons.svg', label: 'Users', href: '/admin/users' },
-                // { icon: '/roles.svg', label: 'Roles & Permisssions', href: '/admin/permission' },
-                // { icon: '/lock.svg', label: 'Security Logs', href: '/admin/security-logs' },
-            ]
-        },
-        {
-            section: 'bottom',
-            items: [
-                { icon: Settings, label: 'Settings', href: '/admin/settings' },
-            ]
-        }
-    ];
-
     // Sync activeItem with current pathname
     useEffect(() => {
-        const currentItem = menuItems
+        const currentItem = adminMenuItems
             .flatMap(section => section.items)
             .find(item => item.href === pathname);
 
@@ -92,12 +90,6 @@ const AdminSidebar = () => {
         router.push(item.href);
     };
 
-    const handleLogoutClick = (): void => {
-        Cookies.remove('access_token');
-        Cookies.remove('refresh_token');
-        router.push('/auth/sign-in');
-    };
-
     // Helper function to render icons
     const renderIcon = (icon: string | React.ComponentType<any>, isActive: boolean) => {
         if (typeof icon === 'string') {
@@ -106,14 +98,14 @@ const AdminSidebar = () => {
                 <img
                     src={icon}
                     alt="icon"
-                    className={`h-5 w-5 mr-4 ${isActive ? 'text-[#1A4A7A]' : 'text-gray-500'}`}
+                    className={`h-5 w-5 mr-4 ${isActive ? 'text-primary' : 'text-gray-500'}`}
                 />
             );
         } else {
             const IconComponent = icon;
             return (
                 <IconComponent
-                    className={`h-5 cursor-pointer w-5 mr-3 ${isActive ? 'text-[#1A4A7A]' : 'text-gray-500'}`}
+                    className={`h-5 cursor-pointer w-5 mr-3 ${isActive ? 'text-primary' : 'text-gray-500'}`}
                 />
             );
         }
@@ -133,7 +125,7 @@ const AdminSidebar = () => {
                 <nav className="px-3">
                     {/* Main menu items */}
                     <div className="space-y-3">
-                        {menuItems[0].items.map((item: MenuItem, itemIndex: number) => {
+                {adminMenuItems[0].items.map((item: MenuItem, itemIndex: number) => {
                             const isActive = pathname === item.href || activeItem === item.label;
 
                             return (
@@ -142,7 +134,7 @@ const AdminSidebar = () => {
                                     type="button"
                                     onClick={() => handleMenuItemClick(item)}
                                     className={`flex cursor-pointer items-center w-full px-4 py-3 text-base text-nowrap font-medium rounded-lg transition-all duration-200 text-left ${isActive
-                                        ? 'bg-[#E8EDF2] text-[#1A4A7A] border-l-2 border-[#1A4A7A] rounded-lg'
+                                        ? 'bg-[#E8EDF2] text-primary border-l-2 border-primary rounded-lg'
                                         : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                         }`}
                                 >
@@ -157,7 +149,7 @@ const AdminSidebar = () => {
 
             {/* Bottom Menu Items */}
             <div className="px-6 pb-8 space-y-2">
-                {menuItems[1].items.map((item: MenuItem, itemIndex: number) => {
+                {adminMenuItems[1].items.map((item: MenuItem, itemIndex: number) => {
                     const isActive = pathname === item.href || activeItem === item.label;
 
                     return (
@@ -166,7 +158,7 @@ const AdminSidebar = () => {
                             type="button"
                             onClick={() => handleMenuItemClick(item)}
                             className={`flex items-center cursor-pointer w-full px-4 py-3 text-base font-medium rounded-lg transition-all duration-200 text-left ${isActive
-                                ? 'bg-blue-50 text-[#1A4A7A]'
+                                ? 'bg-blue-50 text-primary'
                                 : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                                 }`}
                         >
@@ -178,11 +170,11 @@ const AdminSidebar = () => {
 
                 {/* Logout Button */}
                 <button
-                    onClick={handleLogoutClick}
+                    onClick={handleLogout}
                     className="flex cursor-pointer items-center w-full px-4 py-3 text-base font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-lg transition-all duration-200"
                 >
-                    <LogOut onClick={handleLogout} className="h-5 w-5 mr-4 text-gray-500" />
-                    Logout
+                    <LogOut className="h-5 w-5 mr-4 text-gray-500" />
+                    {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </button>
             </div>
         </div>

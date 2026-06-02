@@ -194,7 +194,7 @@ export default function SignUpPage() {
                     <button
                         type="submit"
                         disabled={registering}
-                        className="w-full bg-[#2B5A8E] justify-center flex cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="w-full bg-primary justify-center flex cursor-pointer hover:bg-primary text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         {registering ? <Loader2 className='animate-spin' /> : 'Create Account'}
                     </button>

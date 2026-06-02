@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
                 <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-sm p-8 md:p-12">
                     <div className="text-center">
                         <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <Mail className="w-8 h-8 text-[#2B5A8E]" />
+                            <Mail className="w-8 h-8 text-primary" />
                         </div>
                         <h1 className="text-2xl font-bold text-gray-900 mb-3">
                             Check Your Email
@@ -58,7 +58,7 @@ export default function ForgotPasswordPage() {
                         </p>
                         <button
                             onClick={() => router.push(`/auth/verify-token?email=${encodeURIComponent(submittedEmail)}`)}
-                            className="w-full cursor-pointer bg-[#2B5A8E] hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm"
+                            className="w-full cursor-pointer bg-primary hover:bg-primary text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm"
                         >
                             Enter Reset Code
                         </button>
@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                             Didn't receive the code?{' '}
                             <button
                                 onClick={() => setIsSuccess(false)}
-                                className="text-[#1A4A7A] hover:text-[#1A4A7A] font-medium transition-colors"
+                                className="text-primary hover:text-primary font-medium transition-colors"
                             >
                                 Resend code
                             </button>
@@ -90,7 +90,7 @@ export default function ForgotPasswordPage() {
 
                 <div className="text-center mb-8">
                     <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <Lock className="w-8 h-8 text-[#2B5A8E]" />
+                        <Lock className="w-8 h-8 text-primary" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-3">
                         Forgot Password?
@@ -141,7 +141,7 @@ export default function ForgotPasswordPage() {
                     <button
                         onClick={handleSubmit(onSubmit)}
                         disabled={isPending || !emailValue || !!errors.email}
-                        className="w-full bg-[#2B5A8E] cursor-pointer hover:bg-[#234a75] text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="w-full bg-primary cursor-pointer hover:bg-primary text-white font-medium py-3.5 rounded-lg transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                         {isPending ? (
                             <>
@@ -158,7 +158,7 @@ export default function ForgotPasswordPage() {
                     Remember your password?{' '}
                     <Link
                         href="/auth/login"
-                        className="text-[#1A4A7A] hover:text-[#1A4A7A] font-medium transition-colors"
+                        className="text-primary hover:text-primary font-medium transition-colors"
                     >
                         Sign In
                     </Link>

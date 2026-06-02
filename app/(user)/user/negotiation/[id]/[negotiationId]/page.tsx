@@ -7,7 +7,7 @@ import {
     ArrowLeft, ChevronDown, ChevronUp, CheckCircle2, XCircle,
     AlertTriangle, Clock, Paperclip, Sparkles, DollarSign,
     Package, Truck, CreditCard, FileText, Zap, User, Bot,
-    AlertCircle, Trophy, Ban, RotateCcw,
+    AlertCircle, Trophy, Ban, RotateCcw, Settings2, HelpCircle, Send, Eye,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -19,21 +19,39 @@ import {
     useEndNegotiation, useResumeNegotiation, useOverrideNegotiation,
     usePendingClarification, useResolveClarification, useNegotiationsBySession,
     useNegotiationQuoteRevisions,
-    useNegotiationEscalation, useResolveNegotiationEscalation,
+    useNegotiationEscalation, usePreviewNegotiationEscalation, useResolveNegotiationEscalation,
+    useSubmitManualQuote, useRequestRequote, useAcceptCommercialTerms, useAcceptPriceRange,
+    useAcceptPartialQuote, useReissueSupplierRequest, useResolveVariance,
     subscribeToNegotiationEvents,
     downloadNegotiationAttachment, getAttachmentPresignedUrl,
-    Negotiation, NegotiationMessage, NegotiationEvent, Supplier, ClarificationRequest, NegotiationEscalation, SupplierQuoteRevision,
+    Negotiation, NegotiationMessage, NegotiationEvent, Supplier, ClarificationRequest, NegotiationEscalation, NegotiationEscalationPreview, SupplierQuoteRevision, Constraints,
 } from '@/services/requests/negotiation'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Loader2, Download } from 'lucide-react'
 import { buildRfqMeta, compactRfqDescription } from '@/lib/rfqDisplay'
 import { getApiError } from '@/lib/utils'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-function fmt(n: number | null | undefined, prefix = '$') {
+const EMPTY_RFQ_LINES: any[] = []
+
+function currencyPrefix(currency: string | null | undefined) {
+    const code = (currency || '').toUpperCase()
+    if (!code) return '$'
+    if (code === 'USD') return '$'
+    if (code === 'NGN') return '₦'
+    if (code === 'GBP') return '£'
+    if (code === 'EUR') return '€'
+    return `${code} `
+}
+
+function fmt(n: number | null | undefined, currencyOrPrefix: string = '$') {
     if (n == null) return '—'
+    const prefix = currencyOrPrefix.length === 3
+        ? currencyPrefix(currencyOrPrefix)
+        : currencyOrPrefix
     return `${prefix}${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
@@ -68,6 +86,261 @@ function toNum(value: any) {
     if (value == null || value === '') return null
     const num = Number(value)
     return Number.isFinite(num) ? num : null
+}
+
+function pendingFailureReference(pending: Record<string, any> | null | undefined) {
+    return pending?.failure_reference_id || pending?.send_error_reference_id || pending?.processing_reference_id || null
+}
+
+function pendingFailureCode(pending: Record<string, any> | null | undefined) {
+    return pending?.failure_error_code || pending?.processing_error_code || null
+}
+
+function FailureMeta({ pending }: { pending: Record<string, any> | null | undefined }) {
+    const referenceId = pendingFailureReference(pending)
+    const errorCode = pendingFailureCode(pending)
+    if (!referenceId && !errorCode) return null
+
+    return (
+        <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+            {errorCode && (
+                <span className="rounded-full border border-black/10 bg-white/70 px-2 py-0.5 text-gray-700">
+                    Code: <span className="font-mono">{errorCode}</span>
+                </span>
+            )}
+            {referenceId && (
+                <span className="rounded-full border border-black/10 bg-white/70 px-2 py-0.5 text-gray-700">
+                    Ref: <span className="font-mono">{referenceId}</span>
+                </span>
+            )}
+        </div>
+    )
+}
+
+function prettyJson(value: unknown) {
+    try {
+        return JSON.stringify(value, null, 2)
+    } catch {
+        return String(value)
+    }
+}
+
+function inspectorNextStep({
+    negotiation,
+    constraints,
+}: {
+    negotiation: Negotiation
+    constraints?: Constraints | null
+}) {
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    const reason = pending?.reason
+
+    if (negotiation.status === 'awaiting_approval') {
+        return constraints?.approval_mode === 'manual'
+            ? 'AI has prepared the next counteroffer. Backend is waiting for buyer approval or override before sending via Nylas.'
+            : 'A pending approval state exists even though approval mode is not manual. This lane should be reviewed.'
+    }
+    if (negotiation.status === 'awaiting_clarification') {
+        return 'Backend has paused the supplier timeout clock and is waiting for a clarification answer before resuming the same negotiation round.'
+    }
+    if (negotiation.status === 'paused') {
+        if (reason === 'quote_extraction_failed') return 'Backend is blocked on buyer review because it could not confidently reconstruct a supplier quote from the inbound material.'
+        if (reason === 'processing_blocked') return 'Backend hit a provider/runtime boundary during attachment or extraction processing. Retry will resume from the queued inbound email.'
+        if (reason === 'strategy_failed') return 'Extraction and rule checks completed, but AI strategy generation failed. Retry will regenerate the next move from the stored supplier offer.'
+        if (reason === 'strategy_unsafe') return 'AI produced an unsafe or invalid draft. Buyer can retry or end the lane.'
+        if (reason === 'incomplete_quote') return 'Backend extracted partial commercial data, emailed the supplier for clarification, and paused the lane for monitoring.'
+        if (reason === 'unquoted_line_items') return 'Backend found missing line pricing. Buyer can accept the partial quote, reissue the supplier request, or end the lane.'
+        if (reason === 'currency_mismatch') return 'Backend stopped commercial comparison because the supplier quoted in a different currency than the session baseline.'
+        if (reason === 'tax_basis_review') return 'Backend extracted a quote but paused because tax/commercial basis needs buyer confirmation before comparing numbers.'
+        if (reason === 'price_range_quote') return 'Backend detected a quoted range and is waiting for buyer choice of low, midpoint, high, or a requote request.'
+        if (reason === 'max_rounds_reached') return 'Backend hit the automated round limit, but paused instead of ending because the supplier still looks close enough or is improving. Buyer can continue, ask for a revision, or end the lane.'
+        if (reason === 'send_failed') return 'Backend produced a valid outbound message but the provider send step failed. Retry will resend the stored draft.'
+        return 'Backend has intentionally paused this lane and is waiting for a buyer-visible intervention path.'
+    }
+    if (negotiation.status === 'active') {
+        if (reason === 'awaiting_revised_quote') {
+            return 'Supplier accepted the figures in principle, and the system has asked them to send an updated quote reflecting those figures before the lane can close.'
+        }
+        return constraints?.approval_mode === 'auto'
+            ? 'Backend will keep classifying inbound supplier replies, extracting offers, checking rules, generating counters, and sending automatically until a pause or terminal outcome occurs.'
+            : 'Backend will keep processing supplier replies automatically, but any outbound counteroffer should pause for buyer approval before send.'
+    }
+    if (negotiation.status === 'successful') {
+        return 'Backend has closed the lane as awarded/agreed and should not generate further negotiation moves on this thread.'
+    }
+    if (negotiation.status === 'failed' || negotiation.status === 'ended' || negotiation.status === 'timed_out') {
+        return 'Backend considers this lane terminal. Later supplier replies should be logged, not re-enter the live negotiation pipeline.'
+    }
+    return 'Backend state is present but the next automation step is not one of the standard foreground paths.'
+}
+
+function InspectorSection({
+    title,
+    subtitle,
+    defaultOpen = false,
+    children,
+}: {
+    title: string
+    subtitle?: string
+    defaultOpen?: boolean
+    children: React.ReactNode
+}) {
+    const [open, setOpen] = useState(defaultOpen)
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white">
+            <button
+                type="button"
+                onClick={() => setOpen((v) => !v)}
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+            >
+                <div>
+                    <p className="text-sm font-semibold text-slate-900">{title}</p>
+                    {subtitle && <p className="text-xs text-slate-500 mt-0.5">{subtitle}</p>}
+                </div>
+                {open ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+            </button>
+            {open && <div className="border-t border-slate-100 px-4 py-4">{children}</div>}
+        </div>
+    )
+}
+
+function BackendWorkflowInspector({
+    negotiation,
+    constraints,
+    session,
+    latestQuoteRevision,
+    messages,
+    events,
+}: {
+    negotiation: Negotiation
+    constraints?: Constraints | null
+    session?: any
+    latestQuoteRevision: SupplierQuoteRevision | null
+    messages: NegotiationMessage[]
+    events: NegotiationEvent[]
+}) {
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    const currentRound = negotiation.current_round ?? 0
+    const pendingRound =
+        negotiation.status === 'awaiting_approval' &&
+        typeof pending?.round_number === 'number' &&
+        pending.round_number > currentRound
+            ? pending.round_number
+            : null
+    const latestInbound = [...messages].reverse().find((msg) => msg.direction === 'inbound') || null
+    const attachmentAudit = (pending?.attachments_meta as Array<Record<string, any>> | undefined)
+        || latestInbound?.attachments
+        || []
+    const latestEvent = events.length ? events[events.length - 1] : null
+    const summaryTiles = [
+        { label: 'Negotiation status', value: negotiation.status },
+        { label: 'Lifecycle', value: negotiation.lifecycle_label || negotiation.lifecycle_state || '—' },
+        { label: 'Session phase', value: session?.negotiation_phase || '—' },
+        { label: 'Approval mode', value: constraints?.approval_mode || '—' },
+        { label: 'Strategy', value: constraints?.strategy || '—' },
+        { label: 'Paused reason', value: pending?.reason || negotiation.pause_reason || '—' },
+        { label: 'Current round', value: String(currentRound) },
+        ...(pendingRound != null ? [{ label: 'Pending next round', value: String(pendingRound) }] : []),
+        { label: 'Latest revision', value: latestQuoteRevision ? `Rev ${latestQuoteRevision.revision_number}` : '—' },
+    ]
+
+    return (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 space-y-3">
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                    <p className="text-[11px] uppercase tracking-[0.18em] font-semibold text-slate-500">Backend workflow inspector</p>
+                    <p className="text-sm text-slate-700 mt-1 max-w-3xl">
+                        {inspectorNextStep({ negotiation, constraints })}
+                    </p>
+                </div>
+                <Badge className="border border-slate-300 bg-white text-slate-700 text-xs">
+                    Pipeline view
+                </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {summaryTiles.map((tile) => (
+                    <div key={tile.label} className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                        <p className="text-[10px] uppercase tracking-wide text-slate-400">{tile.label}</p>
+                        <p className="text-sm font-semibold text-slate-800 capitalize break-words">{tile.value}</p>
+                    </div>
+                ))}
+            </div>
+
+            <InspectorSection
+                title="Automation semantics"
+                subtitle="This translates the backend flags into actual orchestration behavior."
+                defaultOpen
+            >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <p className="font-semibold text-slate-800 mb-1">Inbound processing</p>
+                        <p className="text-slate-600">
+                            Supplier replies are classified, attachments are text-recovered, commercial data is extracted, then rule checks decide whether the lane proceeds, pauses, or ends.
+                        </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <p className="font-semibold text-slate-800 mb-1">Outbound behavior</p>
+                        <p className="text-slate-600">
+                            {constraints?.approval_mode === 'manual'
+                                ? 'Manual approval mode is active, so the backend should stop before sending any counteroffer and wait for buyer approval or override.'
+                                : 'Auto mode is active, so once rule checks and strategy succeed the backend should send the next counteroffer automatically via Nylas.'}
+                        </p>
+                    </div>
+                </div>
+            </InspectorSection>
+
+            <InspectorSection
+                title="Attachment processing audit"
+                subtitle="Shows what the backend stored about inbound files, OCR, and audit persistence."
+            >
+                {!attachmentAudit.length ? (
+                    <p className="text-sm text-slate-500">No attachment metadata is currently attached to the active lane state.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {attachmentAudit.map((att: any, idx: number) => (
+                            <div key={`${att.id || att.filename || idx}`} className="rounded-xl border border-slate-200 bg-white px-3 py-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <p className="text-sm font-semibold text-slate-900">{att.filename || att.id || `Attachment ${idx + 1}`}</p>
+                                    {att.processing_status && <Badge className="border border-slate-200 bg-slate-50 text-slate-700 text-[11px]">{att.processing_status}</Badge>}
+                                    {att.processing_source && <Badge className="border border-purple-200 bg-purple-50 text-purple-700 text-[11px]">{att.processing_source}</Badge>}
+                                    {att.processing_truncated && <Badge className="border border-amber-200 bg-amber-50 text-amber-700 text-[11px]">truncated to first 5 pages</Badge>}
+                                    {att.audit_storage_status === 'failed' && <Badge className="border border-amber-200 bg-amber-50 text-amber-700 text-[11px]">storage failed</Badge>}
+                                </div>
+                                <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-slate-600">
+                                    {att.content_type && <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5">{att.content_type}</span>}
+                                    {att.processing_error_code && <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-red-700">{att.processing_error_code}</span>}
+                                    {att.processing_reference_id && <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 font-mono">Ref {att.processing_reference_id}</span>}
+                                    {att.s3_key && <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-emerald-700">audited to S3</span>}
+                                </div>
+                                {att.processing_message && <p className="mt-2 text-xs text-slate-500">{att.processing_message}</p>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </InspectorSection>
+
+            <InspectorSection
+                title="Stored backend payloads"
+                subtitle="These are the actual objects the backend is using to resume, compare, and continue the lane."
+            >
+                <div className="space-y-3">
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">pending_counteroffer</p>
+                        <pre className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-[11px] text-slate-100">{prettyJson(pending)}</pre>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">latest effective offer / revision</p>
+                        <pre className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-[11px] text-slate-100">{prettyJson(latestQuoteRevision?.effective_offer || latestQuoteRevision)}</pre>
+                    </div>
+                    <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">latest event payload</p>
+                        <pre className="max-h-72 overflow-auto rounded-xl border border-slate-200 bg-slate-950 p-3 text-[11px] text-slate-100">{prettyJson(latestEvent)}</pre>
+                    </div>
+                </div>
+            </InspectorSection>
+        </div>
+    )
 }
 
 function comparisonStatus(quoted: number | null, target: number | null, max: number | null): 'ok' | 'warn' | 'violation' | 'missing' {
@@ -227,7 +500,7 @@ function OutcomeBanner({ negotiation, events }: { negotiation: Negotiation; even
                 <Clock className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
                 <div>
                     <p className="font-semibold text-gray-700 text-sm">Supplier did not respond</p>
-                    <p className="text-gray-500 text-sm mt-0.5">The supplier missed their response deadline. The negotiation was closed automatically.</p>
+                    <p className="text-gray-500 text-sm mt-0.5">The supplier missed the submission deadline. The negotiation was closed automatically.</p>
                 </div>
             </div>
         )
@@ -254,6 +527,104 @@ function OutcomeBanner({ negotiation, events }: { negotiation: Negotiation; even
         )
     }
     return null
+}
+
+function agreementTermDisplay(key: string, value: any) {
+    if (value == null || value === '') return '—'
+    if (key === 'currency') return String(value)
+    if (key === 'quantity') return String(value)
+    if (key === 'delivery_days') return `${value} working days`
+    if (key === 'payment_days') return `${value} days`
+    if (key === 'unit_price') return fmt(Number(value))
+    return String(value)
+}
+
+function AgreementTermsCard({ negotiation }: { negotiation: Negotiation }) {
+    if (negotiation.end_reason !== 'agreement' || !negotiation.agreed_terms) return null
+
+    const agreedTerms = negotiation.agreed_terms as Record<string, any>
+    const baseline = (agreedTerms.baseline as Record<string, any> | undefined) ?? {}
+    const accepted = (agreedTerms.accepted as Record<string, any> | undefined) ?? {}
+    const deviations = Array.isArray(agreedTerms.deviations) ? agreedTerms.deviations : []
+    const acceptedLineItems = Array.isArray(accepted.line_items) ? accepted.line_items : []
+
+    const trackedRows = [
+        { key: 'currency', label: 'Currency' },
+        { key: 'quantity', label: 'Quantity' },
+        { key: 'delivery_days', label: 'Delivery lead time' },
+        { key: 'payment_days', label: 'Payment terms' },
+        { key: 'delivery_location', label: 'Delivery location' },
+        { key: 'incoterms', label: 'Incoterms' },
+        { key: 'quote_validity_period', label: 'Quote validity' },
+    ].filter((row) => baseline[row.key] != null || accepted[row.key] != null)
+
+    return (
+        <div className="rounded-xl border border-emerald-200 bg-white p-4 space-y-4">
+            <div>
+                <p className="text-[10px] uppercase tracking-wide text-emerald-600 font-semibold">Accepted commercial terms</p>
+                <p className="text-sm text-gray-700 mt-1">
+                    This shows the original baseline alongside the terms that were actually accepted in the final agreement.
+                </p>
+            </div>
+
+            {deviations.length > 0 && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">Accepted deviations</p>
+                    <div className="space-y-2">
+                        {deviations.map((item: any, index: number) => (
+                            <div key={`${item.key}-${index}`} className="text-xs text-amber-900">
+                                <span className="font-semibold">{item.label}:</span>{' '}
+                                <span className="text-gray-600">{agreementTermDisplay(item.key, item.baseline)}</span>
+                                {' '}→{' '}
+                                <span className="font-semibold">{agreementTermDisplay(item.key, item.accepted)}</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {trackedRows.length > 0 && (
+                <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <div className="grid grid-cols-[minmax(140px,1fr)_minmax(0,1fr)_minmax(0,1fr)] bg-gray-50 px-3 py-2 text-[11px] uppercase tracking-wide text-gray-500">
+                        <span>Term</span>
+                        <span>Baseline</span>
+                        <span>Accepted</span>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                        {trackedRows.map((row) => {
+                            const changed = baseline[row.key] != null && accepted[row.key] != null && baseline[row.key] !== accepted[row.key]
+                            return (
+                                <div key={row.key} className={`grid grid-cols-[minmax(140px,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-3 px-3 py-2 text-sm ${changed ? 'bg-amber-50/60' : 'bg-white'}`}>
+                                    <span className="font-medium text-gray-800">{row.label}</span>
+                                    <span className="text-gray-600">{agreementTermDisplay(row.key, baseline[row.key])}</span>
+                                    <span className="text-gray-900">{agreementTermDisplay(row.key, accepted[row.key])}</span>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {acceptedLineItems.length > 0 && (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">Accepted line items</p>
+                    <div className="space-y-2">
+                        {acceptedLineItems.map((item: any, index: number) => (
+                            <div key={`${item.line_number ?? index}-${item.item_name ?? index}`} className="flex items-center justify-between gap-3 text-sm">
+                                <div className="min-w-0">
+                                    <p className="font-medium text-gray-800 truncate">{item.item_name || `Line ${item.line_number ?? index + 1}`}</p>
+                                    <p className="text-xs text-gray-500">Qty {item.quantity ?? '—'}</p>
+                                </div>
+                                <div className="font-semibold text-gray-900">
+                                    {item.unit_price != null ? fmt(Number(item.unit_price)) : '—'}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
 }
 
 // ─── pipeline event pill ─────────────────────────────────────────────────────
@@ -338,6 +709,7 @@ function PipelineEvent({ ev }: { ev: NegotiationEvent }) {
 
 function ExtractedOfferCard({ offer, isViolation }: { offer: Record<string, any>; isViolation: boolean }) {
     const lineItems: any[] | null = Array.isArray(offer.line_items) && offer.line_items.length > 0 ? offer.line_items : null
+    const offerCurrency = typeof offer.currency === 'string' ? offer.currency : undefined
 
     const accent = isViolation ? 'bg-red-50 border-red-200' : 'bg-purple-50 border-purple-200'
     const textColor = isViolation ? 'text-red-700' : 'text-purple-700'
@@ -384,8 +756,8 @@ function ExtractedOfferCard({ offer, isViolation }: { offer: Record<string, any>
                                     <tr key={i}>
                                         <td className={`py-1 pr-3 font-medium ${textColor}`}>{li.item_name ?? li.name ?? `Item ${i + 1}`}</td>
                                         <td className={`py-1 pr-3 ${textColor}`}>{qty ?? '—'}</td>
-                                        <td className={`py-1 pr-3 ${textColor}`}>{price != null ? fmt(price) : '—'}</td>
-                                        <td className={`py-1 ${textColor}`}>{total != null ? fmt(total) : '—'}</td>
+                                        <td className={`py-1 pr-3 ${textColor}`}>{price != null ? fmt(price, offerCurrency) : '—'}</td>
+                                        <td className={`py-1 ${textColor}`}>{total != null ? fmt(total, offerCurrency) : '—'}</td>
                                     </tr>
                                 )
                             })}
@@ -398,7 +770,7 @@ function ExtractedOfferCard({ offer, isViolation }: { offer: Record<string, any>
 
     // Single-item offer — flat key/value pills
     const fields = [
-        { key: 'unit_price', label: 'Price/unit', icon: <DollarSign className="h-3.5 w-3.5" />, fmt: (v: any) => fmt(Number(v)) },
+        { key: 'unit_price', label: 'Price/unit', icon: <DollarSign className="h-3.5 w-3.5" />, fmt: (v: any) => fmt(Number(v), offerCurrency) },
         { key: 'quantity', label: 'Qty', icon: <Package className="h-3.5 w-3.5" />, fmt: (v: any) => String(v) },
         { key: 'delivery_days', label: 'Delivery', icon: <Truck className="h-3.5 w-3.5" />, fmt: (v: any) => `${v} days` },
         { key: 'payment_days', label: 'Payment', icon: <CreditCard className="h-3.5 w-3.5" />, fmt: (v: any) => `${v} days` },
@@ -483,6 +855,8 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
     const totalMax = rows.reduce((sum, row) => sum + ((row.maxPrice != null && row.qty != null) ? row.maxPrice * row.qty : 0), 0)
     const deliveryDays = toNum(effectiveOffer.delivery_days)
     const paymentDays = toNum(effectiveOffer.payment_days)
+    const baselineCurrency = constraints?.currency || effectiveOffer.currency || 'USD'
+    const quoteCurrency = effectiveOffer.currency || baselineCurrency
     const singleQuoted = toNum(effectiveOffer.unit_price)
     const singlePrevious = toNum(previousRevision?.effective_offer?.unit_price)
     const singleQty = toNum(effectiveOffer.quantity) ?? toNum(rfq?.quantity) ?? toNum(constraints?.quantity)
@@ -532,11 +906,11 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
                                 <tr key={i}>
                                     <td className="py-1 pr-3 font-medium text-gray-800 max-w-[130px] truncate">{ri.item_name}</td>
                                     <td className="py-1 pr-3 text-gray-600">{qty ?? '—'}{ri.unit ? ` ${ri.unit}` : ''}</td>
-                                    <td className="py-1 pr-3 text-blue-500">{targetPrice != null ? fmt(targetPrice) : '—'}</td>
-                                    <td className="py-1 pr-3 text-blue-400">{maxPrice != null ? fmt(maxPrice) : '—'}</td>
+                                    <td className="py-1 pr-3 text-blue-500">{targetPrice != null ? fmt(targetPrice, baselineCurrency) : '—'}</td>
+                                    <td className="py-1 pr-3 text-blue-400">{maxPrice != null ? fmt(maxPrice, baselineCurrency) : '—'}</td>
                                     <td className={`py-1 pr-3 ${priceCls(status)}`}>
                                         <div className="flex flex-col">
-                                            <span>{quotedPrice != null ? fmt(quotedPrice) : '—'}</span>
+                                            <span>{quotedPrice != null ? fmt(quotedPrice, quoteCurrency) : '—'}</span>
                                             {quoteState === 'carried_forward' && (
                                                 <span className="text-[10px] text-gray-400 font-normal">↩ carried</span>
                                             )}
@@ -546,9 +920,9 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
                                         </div>
                                     </td>
                                     <td className="py-1 pr-3 text-gray-400">
-                                        {previousPrice != null ? fmt(previousPrice) : '—'}
+                                        {previousPrice != null ? fmt(previousPrice, quoteCurrency) : '—'}
                                     </td>
-                                    <td className="py-1 pr-2 text-gray-600">{total != null ? fmt(total) : '—'}</td>
+                                    <td className="py-1 pr-2 text-gray-600">{total != null ? fmt(total, quoteCurrency) : '—'}</td>
                                     <td className="py-1">{statusIcon(status)}</td>
                                 </tr>
                             ))}
@@ -557,13 +931,13 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
                             <tr className={`border-t ${isViolation ? 'border-red-200' : 'border-purple-200'} font-semibold`}>
                                 <td className="pt-2 pr-3 text-gray-700">Total</td>
                                 <td className="pt-2 pr-3 text-gray-400">—</td>
-                                <td className="pt-2 pr-3 text-blue-500">{totalTarget > 0 ? fmt(totalTarget) : '—'}</td>
-                                <td className="pt-2 pr-3 text-blue-400">{totalMax > 0 ? fmt(totalMax) : '—'}</td>
+                                <td className="pt-2 pr-3 text-blue-500">{totalTarget > 0 ? fmt(totalTarget, baselineCurrency) : '—'}</td>
+                                <td className="pt-2 pr-3 text-blue-400">{totalMax > 0 ? fmt(totalMax, baselineCurrency) : '—'}</td>
                                 <td className={`pt-2 pr-3 ${priceCls(comparisonStatus(totalQuoted > 0 ? totalQuoted : null, totalTarget > 0 ? totalTarget : null, toNum(constraints?.total_budget_ceiling) ?? (totalMax > 0 ? totalMax : null)))}`}>
-                                    {totalQuoted > 0 ? fmt(totalQuoted) : '—'}
+                                    {totalQuoted > 0 ? fmt(totalQuoted, quoteCurrency) : '—'}
                                 </td>
                                 <td className="pt-2 pr-3 text-gray-400">—</td>
-                                <td className="pt-2 pr-2 text-gray-600">{constraints?.total_budget_ceiling != null ? `Ceiling ${fmt(toNum(constraints.total_budget_ceiling))}` : '—'}</td>
+                                <td className="pt-2 pr-2 text-gray-600">{constraints?.total_budget_ceiling != null ? `Ceiling ${fmt(toNum(constraints.total_budget_ceiling), baselineCurrency)}` : '—'}</td>
                                 <td className="pt-2">
                                     {constraints?.total_budget_ceiling != null
                                         ? statusIcon(comparisonStatus(totalQuoted > 0 ? totalQuoted : null, totalTarget > 0 ? totalTarget : null, toNum(constraints.total_budget_ceiling)))
@@ -592,16 +966,16 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
                             <tr>
                                 <td className="py-1 pr-3 font-medium text-gray-800">{rfq?.item_name ?? 'Quoted item'}</td>
                                 <td className="py-1 pr-3 text-gray-600">{singleQty ?? '—'}</td>
-                                <td className="py-1 pr-3 text-blue-500">{singleTarget != null ? fmt(singleTarget) : '—'}</td>
-                                <td className="py-1 pr-3 text-blue-400">{singleMax != null ? fmt(singleMax) : '—'}</td>
+                                <td className="py-1 pr-3 text-blue-500">{singleTarget != null ? fmt(singleTarget, baselineCurrency) : '—'}</td>
+                                <td className="py-1 pr-3 text-blue-400">{singleMax != null ? fmt(singleMax, baselineCurrency) : '—'}</td>
                                 <td className={`py-1 pr-3 ${priceCls(singleStatus)}`}>
                                     <div className="flex flex-col">
-                                        <span>{singleQuoted != null ? fmt(singleQuoted) : '—'}</span>
+                                        <span>{singleQuoted != null ? fmt(singleQuoted, quoteCurrency) : '—'}</span>
                                         {singleDelta && <span className={`text-[10px] font-medium ${singleDelta.cls}`}>{singleDelta.label}</span>}
                                     </div>
                                 </td>
-                                <td className="py-1 pr-3 text-gray-400">{singlePrevious != null ? fmt(singlePrevious) : '—'}</td>
-                                <td className="py-1 pr-3 text-gray-600">{singleQuoted != null && singleQty != null ? fmt(singleQuoted * singleQty) : '—'}</td>
+                                <td className="py-1 pr-3 text-gray-400">{singlePrevious != null ? fmt(singlePrevious, quoteCurrency) : '—'}</td>
+                                <td className="py-1 pr-3 text-gray-600">{singleQuoted != null && singleQty != null ? fmt(singleQuoted * singleQty, quoteCurrency) : '—'}</td>
                                 <td className="py-1">{statusIcon(singleStatus)}</td>
                             </tr>
                         </tbody>
@@ -612,20 +986,82 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
     )
 }
 
+// ─── attachment preview modal ────────────────────────────────────────────────
+
+function AttachmentPreviewModal({
+    att, url, onClose, onDownload,
+}: {
+    att: any
+    url: string
+    onClose: () => void
+    onDownload: () => void
+}) {
+    const isPdf = (att.filename || '').toLowerCase().endsWith('.pdf') || (att.content_type || '').includes('pdf')
+    const isImage = (att.content_type || '').startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(att.filename || '')
+
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+        window.addEventListener('keydown', onKey)
+        return () => window.removeEventListener('keydown', onKey)
+    }, [onClose])
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+            <div
+                className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-gray-50">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Paperclip className="h-4 w-4 text-gray-600 flex-shrink-0" />
+                        <span className="text-sm font-medium text-gray-900 truncate">{att.filename || 'attachment'}</span>
+                        {att.size ? <span className="text-xs text-gray-500 flex-shrink-0">({(att.size / 1024).toFixed(0)} KB)</span> : null}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                        <Button size="sm" variant="outline" onClick={onDownload} className="gap-1.5">
+                            <Download className="h-3.5 w-3.5" /> Download
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => window.open(url, '_blank', 'noopener,noreferrer')} className="gap-1.5">
+                            Open in new tab
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={onClose}>
+                            <XCircle className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+                <div className="flex-1 bg-gray-100 overflow-auto flex items-center justify-center">
+                    {isPdf && <iframe src={url} className="w-full h-full bg-white" title={att.filename || 'attachment'} />}
+                    {isImage && <img src={url} alt={att.filename || ''} className="max-w-full max-h-full object-contain" />}
+                    {!isPdf && !isImage && (
+                        <div className="text-center p-6 space-y-2">
+                            <p className="text-sm text-gray-700">Inline preview isn't available for this file type.</p>
+                            <Button size="sm" onClick={onDownload} className="gap-1.5">
+                                <Download className="h-3.5 w-3.5" /> Download to view
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── attachment button ────────────────────────────────────────────────────────
 
 function AttachmentButton({ att, negotiationId, messageId }: { att: any; negotiationId: string; messageId: string }) {
     const [loading, setLoading] = useState(false)
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null)
     const hasS3 = !!att.s3_key
     const isPdf = (att.filename || '').toLowerCase().endsWith('.pdf') || (att.content_type || '').includes('pdf')
+    const isImage = (att.content_type || '').startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(att.filename || '')
+    const canPreview = hasS3 && (isPdf || isImage)
 
     const handleClick = async () => {
         setLoading(true)
         try {
-            if (hasS3 && isPdf) {
-                // Open PDF in a new tab via pre-signed URL
+            if (canPreview) {
                 const { url } = await getAttachmentPresignedUrl(negotiationId, messageId, att.id)
-                window.open(url, '_blank', 'noopener,noreferrer')
+                setPreviewUrl(url)
             } else {
                 await downloadNegotiationAttachment(negotiationId, messageId, att.id, att.filename || 'attachment')
             }
@@ -636,21 +1072,39 @@ function AttachmentButton({ att, negotiationId, messageId }: { att: any; negotia
         }
     }
 
+    const handleDownload = async () => {
+        try {
+            await downloadNegotiationAttachment(negotiationId, messageId, att.id, att.filename || 'attachment')
+        } catch {
+            toast.error('Download failed')
+        }
+    }
+
     return (
-        <button
-            onClick={handleClick}
-            disabled={loading}
-            className={`flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-1.5 transition-colors border ${
-                hasS3 && isPdf
-                    ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
-                    : 'bg-white border-gray-200 text-blue-600 hover:bg-gray-50 hover:border-gray-300'
-            }`}
-        >
-            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
-            {att.filename || 'attachment'}
-            {att.size ? <span className="opacity-60">({(att.size / 1024).toFixed(0)} KB)</span> : null}
-            {hasS3 && isPdf && <span className="text-[10px] opacity-60 ml-0.5">· saved to S3</span>}
-        </button>
+        <>
+            <button
+                onClick={handleClick}
+                disabled={loading}
+                className={`flex items-center gap-1.5 text-xs rounded-lg px-2.5 py-1.5 transition-colors border ${
+                    canPreview
+                        ? 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
+                        : 'bg-white border-gray-200 text-blue-600 hover:bg-gray-50 hover:border-gray-300'
+                }`}
+            >
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Paperclip className="h-3 w-3" />}
+                {att.filename || 'attachment'}
+                {att.size ? <span className="opacity-60">({(att.size / 1024).toFixed(0)} KB)</span> : null}
+                {canPreview && <span className="text-[10px] opacity-60 ml-0.5">· click to preview</span>}
+            </button>
+            {previewUrl && (
+                <AttachmentPreviewModal
+                    att={att}
+                    url={previewUrl}
+                    onClose={() => setPreviewUrl(null)}
+                    onDownload={handleDownload}
+                />
+            )}
+        </>
     )
 }
 
@@ -711,7 +1165,7 @@ function MessageBubble({
                         ? 'bg-red-50 border border-red-200'
                         : isInbound
                             ? 'bg-gray-50 border border-gray-200'
-                            : 'bg-[#1A4A7A]/5 border border-[#1A4A7A]/20'
+                            : 'bg-primary/5 border border-primary/20'
                 }`}>
                     {msg.subject && (
                         <p className="text-xs text-gray-500 mb-2 pb-2 border-b border-gray-200">
@@ -876,18 +1330,23 @@ function PendingApprovalCard({
     const isMultiItemCounter = counterLineItems.length > 0
     const latestLines = latestRevision?.lines ?? []
     const latestOffer = latestRevision?.effective_offer ?? {}
+    const displayCurrency = pending?.currency || latestOffer.currency || constraints?.currency || rfq?.draft_email?.document_governing_fields?.currency || 'USD'
     const targetUnitPrice = toNum(rfq?.target_price) ?? toNum(constraints?.target_price)
     const latestUnitPrice = toNum(latestOffer.unit_price)
+    useEffect(() => {
+        setOverrideMsg(pending?.message ?? '')
+    }, [pending?.message])
 
     if (negotiation.status !== 'awaiting_approval' || !pending) return null
 
     const doApprove = async (approved: boolean) => {
         try {
+            const editedMessage = overrideMsg !== (pending.message ?? '') ? overrideMsg : undefined
             await approveCounter.mutateAsync({
                 id: negotiation.id,
                 data: {
                     approved,
-                    override_message: overrideMsg || undefined,
+                    override_message: editedMessage || undefined,
                     override_price: overridePrice ? parseFloat(overridePrice) : undefined,
                     override_quantity: overrideQty ? parseInt(overrideQty) : undefined,
                 },
@@ -908,9 +1367,9 @@ function PendingApprovalCard({
                 <div className="bg-white border border-purple-200 rounded-lg p-3 mb-3">
                     <p className="text-xs text-gray-500 mb-1">Quote context</p>
                     <p className="text-sm text-gray-800">
-                        Supplier last quote: <span className="font-semibold text-gray-900">{latestUnitPrice != null ? fmt(latestUnitPrice) : '—'}</span>
-                        {' '}→ AI counter: <span className="font-semibold text-purple-700">{pending.counter_price != null ? fmt(pending.counter_price) : '—'}</span>
-                        {' '}→ Your target: <span className="font-semibold text-blue-700">{targetUnitPrice != null ? fmt(targetUnitPrice) : '—'}</span>
+                        Supplier last quote: <span className="font-semibold text-gray-900">{latestUnitPrice != null ? fmt(latestUnitPrice, displayCurrency) : '—'}</span>
+                        {' '}→ AI counter: <span className="font-semibold text-purple-700">{pending.counter_price != null ? fmt(pending.counter_price, displayCurrency) : '—'}</span>
+                        {' '}→ Your target: <span className="font-semibold text-blue-700">{targetUnitPrice != null ? fmt(targetUnitPrice, constraints?.currency || displayCurrency) : '—'}</span>
                     </p>
                 </div>
             )}
@@ -918,7 +1377,7 @@ function PendingApprovalCard({
                 {pending.counter_price != null && (
                     <div className="bg-white border border-purple-200 rounded-lg p-3 text-center">
                         <p className="text-xs text-gray-500 mb-1">Proposed Price</p>
-                        <p className="text-xl font-bold text-purple-700">{fmt(pending.counter_price)}</p>
+                        <p className="text-xl font-bold text-purple-700">{fmt(pending.counter_price, displayCurrency)}</p>
                     </div>
                 )}
                 {pending.counter_quantity != null && (
@@ -957,16 +1416,16 @@ function PendingApprovalCard({
                                         <td className="py-2 pr-3 text-gray-600">
                                             {(() => {
                                                 const line = latestLines.find((l) => l.line_number === item.line_number)
-                                                return line?.effective_unit_price != null ? fmt(toNum(line.effective_unit_price)) : '—'
+                                                return line?.effective_unit_price != null ? fmt(toNum(line.effective_unit_price), latestOffer.currency || displayCurrency) : '—'
                                             })()}
                                         </td>
                                         <td className="py-2 pr-3 text-purple-700 font-semibold">
-                                            {item.counter_price != null ? fmt(item.counter_price) : '—'}
+                                            {item.counter_price != null ? fmt(item.counter_price, displayCurrency) : '—'}
                                         </td>
                                         <td className="py-2 pr-3 text-blue-600">
                                             {(() => {
                                                 const rfqLine = (rfq?.line_items ?? []).find((l: any) => l.line_number === item.line_number)
-                                                return rfqLine?.target_price_per_unit != null ? fmt(toNum(rfqLine.target_price_per_unit)) : '—'
+                                                return rfqLine?.target_price_per_unit != null ? fmt(toNum(rfqLine.target_price_per_unit), constraints?.currency || displayCurrency) : '—'
                                             })()}
                                         </td>
                                         <td className="py-2 text-gray-700">{item.counter_quantity ?? '—'}</td>
@@ -987,6 +1446,7 @@ function PendingApprovalCard({
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
                     <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide mb-1">Delivery issue</p>
                     <p className="text-sm text-amber-900">{String(pending.send_error)}</p>
+                    <FailureMeta pending={pending} />
                 </div>
             )}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
@@ -1004,9 +1464,13 @@ function PendingApprovalCard({
                             value={overrideQty} onChange={e => setOverrideQty(e.target.value)} className="mt-1 h-8 text-sm" />
                     </div>
                 )}
-                <div>
-                    <Label className="text-xs text-gray-500">Override Message (optional)</Label>
-                    <Input placeholder="Custom reply" value={overrideMsg} onChange={e => setOverrideMsg(e.target.value)} className="mt-1 h-8 text-sm" />
+                <div className="sm:col-span-3">
+                    <Label className="text-xs text-gray-500">Edit Message Draft</Label>
+                    <Textarea
+                        value={overrideMsg}
+                        onChange={e => setOverrideMsg(e.target.value)}
+                        className="mt-1 min-h-[220px] text-sm leading-relaxed"
+                    />
                 </div>
             </div>
             <div className="flex gap-2">
@@ -1043,14 +1507,291 @@ function QuoteStateBadge({ state }: { state: string | null | undefined }) {
     )
 }
 
+function ManualEntryHelpPanel() {
+    const [open, setOpen] = useState(false)
+    return (
+        <div className="text-[11px]">
+            <button
+                type="button"
+                onClick={() => setOpen(o => !o)}
+                className="inline-flex items-center gap-1 text-amber-700 hover:text-amber-900 underline-offset-2 hover:underline"
+            >
+                <HelpCircle className="h-3 w-3" />
+                {open ? 'Hide guidance' : 'When should I use this?'}
+            </button>
+            {open && (
+                <div className="mt-2 rounded-lg border border-amber-200 bg-white p-3 space-y-2">
+                    <p className="text-xs font-semibold text-amber-800">Use manual quote entry when…</p>
+                    <ul className="text-xs text-gray-700 space-y-1.5 list-disc list-inside">
+                        <li>The supplier file is readable to you but extraction couldn't parse it.</li>
+                        <li>OCR processed only the first 5 pages of a PDF and the prices were on later pages.</li>
+                        <li>The extracted text contains a <span className="font-mono text-[10px]">[... truncated ...]</span> marker and the missing rows have prices you need.</li>
+                        <li>The supplier sent a phone photo or scan that the AI couldn't read cleanly.</li>
+                    </ul>
+                    <p className="text-xs font-semibold text-amber-800 pt-1">Don't use it when…</p>
+                    <ul className="text-xs text-gray-700 space-y-1.5 list-disc list-inside">
+                        <li>The pause is a <span className="font-mono text-[10px]">processing_blocked</span> or <span className="font-mono text-[10px]">strategy_failed</span> provider outage — retry first.</li>
+                        <li>The supplier didn't actually quote (wrong file, blank page) — end the negotiation and ask for a re-quote.</li>
+                        <li>The pause is a constraint violation — adjust constraints, don't manually enter a number that breaks your rules.</li>
+                    </ul>
+                    <p className="text-[10px] text-gray-500 pt-1">
+                        Need the full decision table? See <span className="font-mono">OPERATOR_RUNBOOK.md</span> in the repo, section "When to use manual quote entry — decision matrix".
+                    </p>
+                </div>
+            )}
+        </div>
+    )
+}
+
+function ManualQuoteEntryCard({
+    negotiation,
+    rfq,
+    constraints,
+    messages,
+    refetch,
+}: {
+    negotiation: Negotiation
+    rfq?: any
+    constraints?: Constraints | null
+    messages: NegotiationMessage[]
+    refetch: () => void
+}) {
+    const submitManualQuote = useSubmitManualQuote()
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    const reason = pending?.reason as string | undefined
+    const allowed = ['quote_extraction_failed', 'incomplete_quote', 'unquoted_line_items'].includes(reason || '')
+    const extracted = pending?.extracted_offer || {}
+    const rfqLines = rfq?.line_items || EMPTY_RFQ_LINES
+    const isMulti = rfqLines.length > 0
+    const sourceMsg = [...messages].reverse().find(m =>
+        m.direction === 'inbound' && (!pending?.nylas_message_id || m.nylas_message_id === pending.nylas_message_id)
+    )
+
+    const [unitPrice, setUnitPrice] = useState('')
+    const [quantity, setQuantity] = useState('')
+    const [deliveryDays, setDeliveryDays] = useState('')
+    const [paymentDays, setPaymentDays] = useState('')
+    const [conditions, setConditions] = useState('')
+    const [currency, setCurrency] = useState('')
+    const [linePrices, setLinePrices] = useState<Record<number, string>>({})
+    const [lineQuantities, setLineQuantities] = useState<Record<number, string>>({})
+
+    useEffect(() => {
+        if (!allowed) return
+        setCurrency(extracted.currency || constraints?.currency || '')
+        setDeliveryDays(extracted.delivery_days != null ? String(extracted.delivery_days) : '')
+        setPaymentDays(extracted.payment_days != null ? String(extracted.payment_days) : '')
+        setConditions(extracted.conditions || '')
+        if (isMulti) {
+            const extractedByLine = new Map((extracted.line_items || []).map((li: any) => [li.line_number, li]))
+            const prices: Record<number, string> = {}
+            const qtys: Record<number, string> = {}
+            for (const line of rfqLines) {
+                const existing: any = extractedByLine.get(line.line_number)
+                prices[line.line_number] = existing?.unit_price != null ? String(existing.unit_price) : ''
+                qtys[line.line_number] = existing?.quantity != null ? String(existing.quantity) : (line.quantity != null ? String(line.quantity) : '')
+            }
+            setLinePrices(prices)
+            setLineQuantities(qtys)
+        } else {
+            setUnitPrice(extracted.unit_price != null ? String(extracted.unit_price) : '')
+            setQuantity(extracted.quantity != null ? String(extracted.quantity) : (constraints?.quantity != null ? String(constraints.quantity) : ''))
+        }
+    }, [
+        allowed,
+        negotiation.id,
+        isMulti,
+        constraints?.currency,
+        constraints?.quantity,
+        extracted.conditions,
+        extracted.currency,
+        extracted.delivery_days,
+        extracted.line_items,
+        extracted.payment_days,
+        extracted.quantity,
+        extracted.unit_price,
+        rfqLines,
+    ])
+
+    if (!allowed) return null
+
+    const submit = async () => {
+        try {
+            if (isMulti) {
+                const line_items = rfqLines.map((line: any) => ({
+                    line_number: line.line_number,
+                    unit_price: Number(linePrices[line.line_number]),
+                    quantity: lineQuantities[line.line_number] ? Number(lineQuantities[line.line_number]) : undefined,
+                }))
+                if (line_items.some((li: any) => !li.unit_price || li.unit_price <= 0)) {
+                    toast.error('Enter a valid unit price for every RFQ line')
+                    return
+                }
+                await submitManualQuote.mutateAsync({
+                    negotiationId: negotiation.id,
+                    data: {
+                        multi_item: {
+                            line_items,
+                            delivery_days: Number(deliveryDays),
+                            payment_days: Number(paymentDays),
+                            conditions: conditions || undefined,
+                            currency: currency || undefined,
+                        },
+                    },
+                })
+            } else {
+                if (!unitPrice || !quantity || !deliveryDays || paymentDays === '') {
+                    toast.error('Enter price, quantity, delivery days, and payment days')
+                    return
+                }
+                await submitManualQuote.mutateAsync({
+                    negotiationId: negotiation.id,
+                    data: {
+                        single_item: {
+                            unit_price: Number(unitPrice),
+                            quantity: Number(quantity),
+                            delivery_days: Number(deliveryDays),
+                            payment_days: Number(paymentDays),
+                            conditions: conditions || undefined,
+                            currency: currency || undefined,
+                        },
+                    },
+                })
+            }
+            toast.success('Manual quote saved — negotiation pipeline is continuing')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to save manual quote'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-4">
+            <div>
+                <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5" /> Manual Quote Entry Required
+                </p>
+                <p className="text-sm text-amber-900 mt-1">
+                    The supplier quote could not be fully extracted. Enter the values from the supplier document below to continue the normal rule-check and counteroffer pipeline.
+                </p>
+                <div className="mt-2">
+                    <ManualEntryHelpPanel />
+                </div>
+            </div>
+
+            {(pending?.processing_message || pending?.failure_message) && (
+                <div className="rounded-lg border border-amber-200 bg-white p-3">
+                    <p className="text-sm text-amber-900">{String(pending.processing_message || pending.failure_message)}</p>
+                    <FailureMeta pending={pending} />
+                </div>
+            )}
+
+            {sourceMsg && (
+                <div className="rounded-lg border border-amber-200 bg-white p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">Supplier source message</p>
+                    <p className="text-xs text-gray-700 whitespace-pre-wrap max-h-32 overflow-auto">{sourceMsg.message}</p>
+                    {sourceMsg.attachments && sourceMsg.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {sourceMsg.attachments.map((att: any) => (
+                                <button
+                                    key={att.id || att.filename}
+                                    onClick={() => downloadNegotiationAttachment(negotiation.id, sourceMsg.id, att.id, att.filename || 'attachment')}
+                                    className="text-[10px] rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800 hover:bg-amber-100"
+                                >
+                                    Download {att.filename || 'attachment'}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {isMulti ? (
+                <div className="rounded-lg border border-amber-200 bg-white overflow-hidden">
+                    <table className="w-full text-xs">
+                        <thead className="bg-amber-50 text-amber-700">
+                            <tr>
+                                <th className="text-left p-2">Line</th>
+                                <th className="text-left p-2">Item</th>
+                                <th className="text-left p-2">Unit Price</th>
+                                <th className="text-left p-2">Qty</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-amber-100">
+                            {rfqLines.map((line: any) => (
+                                <tr key={line.id}>
+                                    <td className="p-2 text-gray-500">{line.line_number}</td>
+                                    <td className="p-2 text-gray-800">{line.item_name}</td>
+                                    <td className="p-2">
+                                        <Input type="number" step="0.01" value={linePrices[line.line_number] || ''}
+                                            onChange={e => setLinePrices(prev => ({ ...prev, [line.line_number]: e.target.value }))}
+                                            className="h-8 text-xs" />
+                                    </td>
+                                    <td className="p-2">
+                                        <Input type="number" value={lineQuantities[line.line_number] || ''}
+                                            onChange={e => setLineQuantities(prev => ({ ...prev, [line.line_number]: e.target.value }))}
+                                            placeholder={line.quantity != null ? String(line.quantity) : ''}
+                                            className="h-8 text-xs" />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <Label className="text-xs text-amber-700">Unit Price</Label>
+                        <Input type="number" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} className="mt-1 bg-white" />
+                    </div>
+                    <div>
+                        <Label className="text-xs text-amber-700">Quantity</Label>
+                        <Input type="number" value={quantity} onChange={e => setQuantity(e.target.value)} className="mt-1 bg-white" />
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <Label className="text-xs text-amber-700">Delivery Days</Label>
+                    <Input type="number" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="mt-1 bg-white" />
+                </div>
+                <div>
+                    <Label className="text-xs text-amber-700">Payment Days</Label>
+                    <Input type="number" value={paymentDays} onChange={e => setPaymentDays(e.target.value)} className="mt-1 bg-white" />
+                </div>
+                <div>
+                    <Label className="text-xs text-amber-700">Currency</Label>
+                    <Input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} placeholder={constraints?.currency || 'USD'} className="mt-1 bg-white" />
+                </div>
+            </div>
+            <div>
+                <Label className="text-xs text-amber-700">Conditions / Notes</Label>
+                <textarea value={conditions} onChange={e => setConditions(e.target.value)}
+                    className="mt-1 w-full min-h-[80px] rounded-lg border border-amber-200 bg-white p-3 text-sm text-gray-800"
+                    placeholder="Optional supplier conditions, exclusions, or payment/delivery notes" />
+            </div>
+            <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                disabled={submitManualQuote.isPending}
+                onClick={submit}
+            >
+                {submitManualQuote.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                Save Quote & Continue
+            </Button>
+        </div>
+    )
+}
+
 function QuoteHistoryPanel({
     revisions,
     rfq,
     constraints,
+    bafoRequestedAt,
 }: {
     revisions: SupplierQuoteRevision[]
     rfq: any
     constraints: any
+    bafoRequestedAt?: string | null
 }) {
     const rfqItems: any[] = rfq?.line_items ?? []
     const isMultiItem = rfqItems.length > 0
@@ -1081,7 +1822,7 @@ function QuoteHistoryPanel({
                         onClick={() => setShowChangedOnly((prev) => !prev)}
                         className={`rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
                             showChangedOnly
-                                ? 'bg-[#1A4A7A] text-white border-[#1A4A7A]'
+                                ? 'bg-primary text-white border-primary'
                                 : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
                         }`}
                     >
@@ -1103,6 +1844,9 @@ function QuoteHistoryPanel({
                     const changedLineCount = revision.lines.filter((line) => line.quote_state === 'quoted').length
                     const revisionId = String(revision.id)
                     const isOpen = isRevisionOpen(revisionId)
+                    const isBAFORevision = bafoRequestedAt
+                        ? new Date(revision.created_at).getTime() > new Date(bafoRequestedAt).getTime()
+                        : false
 
                     return (
                         <div key={revision.id} className="rounded-xl border border-gray-100 bg-gray-50/70 p-4">
@@ -1121,6 +1865,11 @@ function QuoteHistoryPanel({
                                     <span className={`rounded-full border px-2.5 py-1 text-[11px] ${revision.is_partial ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
                                         {revision.is_partial ? 'partial requote' : 'full quote'}
                                     </span>
+                                    {isBAFORevision && (
+                                        <span className="rounded-full border px-2.5 py-1 text-[11px] bg-yellow-50 text-yellow-700 border-yellow-200">
+                                            BAFO submission
+                                        </span>
+                                    )}
                                     {isMultiItem && (
                                         <span className="rounded-full bg-white border border-gray-200 px-2.5 py-1 text-[11px] text-gray-500">
                                             {changedLineCount} changed line{changedLineCount !== 1 ? 's' : ''}
@@ -1317,10 +2066,65 @@ function QuoteHistoryPanel({
     )
 }
 
+function BAFOStatusCard({
+    negotiation,
+    session,
+    latestQuoteRevision,
+    events,
+}: {
+    negotiation: Negotiation
+    session: any
+    latestQuoteRevision: SupplierQuoteRevision | null
+    events: NegotiationEvent[]
+}) {
+    if (session?.negotiation_phase !== 'bafo') return null
+
+    const bafoReceived = (negotiation.lifecycle_state || '') === 'bafo_received'
+    const bafoRequestEvent = [...events]
+        .reverse()
+        .find((event) => event.event_type === 'email_sent' && (((event.data as any)?.kind) === 'bafo_request' || event.title?.includes('BAFO request sent')))
+    const bafoRequestedAt = bafoRequestEvent?.created_at ?? null
+
+    return (
+        <div className={`rounded-xl border p-4 ${bafoReceived ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                    <p className={`text-[10px] uppercase tracking-wide font-semibold mb-1 flex items-center gap-1 ${bafoReceived ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        <Trophy className="h-3 w-3" /> BAFO status
+                    </p>
+                    <p className={`text-sm ${bafoReceived ? 'text-emerald-900' : 'text-amber-900'}`}>
+                        {bafoReceived
+                            ? 'Supplier has submitted a final offer in the BAFO round.'
+                            : 'BAFO request has been sent and Nexotropi is waiting for the supplier’s final offer.'}
+                    </p>
+                </div>
+                <Badge className={`border text-xs ${LIFECYCLE_BADGE[negotiation.lifecycle_state || ''] || (bafoReceived ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200')}`}>
+                    {(negotiation.lifecycle_label || (bafoReceived ? 'BAFO received' : 'BAFO requested')).toLowerCase()}
+                </Badge>
+            </div>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div className="rounded-lg bg-white/70 border border-white px-3 py-2">
+                    <p className="text-gray-500">BAFO requested</p>
+                    <p className="font-medium text-gray-800">{bafoRequestedAt ? relTime(bafoRequestedAt) : '—'}</p>
+                </div>
+                <div className="rounded-lg bg-white/70 border border-white px-3 py-2">
+                    <p className="text-gray-500">Final offer received</p>
+                    <p className="font-medium text-gray-800">{bafoReceived && latestQuoteRevision ? relTime(latestQuoteRevision.created_at) : 'Not yet'}</p>
+                </div>
+                <div className="rounded-lg bg-white/70 border border-white px-3 py-2">
+                    <p className="text-gray-500">Current final revision</p>
+                    <p className="font-medium text-gray-800">{latestQuoteRevision ? `Revision ${latestQuoteRevision.revision_number}` : '—'}</p>
+                </div>
+            </div>
+        </div>
+    )
+}
+
 // ─── intervention card ────────────────────────────────────────────────────────
 
 function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
     const overrideNegotiation = useOverrideNegotiation()
+    const requestRequote = useRequestRequote()
     const endNegotiation = useEndNegotiation()
     const [buyerMessage, setBuyerMessage] = useState('')
 
@@ -1328,10 +2132,12 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
     const pending = negotiation.pending_counteroffer as Record<string, any> | null
     if (!pending) return null
     const reason = pending.reason as string | undefined
-    if (reason !== 'intervention_required' && reason !== 'spec_deviation') return null
+    if (reason !== 'intervention_required' && reason !== 'spec_deviation' && reason !== 'max_rounds_reached') return null
 
     const unknownParams = pending.unknown_parameters as string[] | undefined
     const specDeviation = pending.spec_deviation as string | undefined
+    const softMaxDecision = pending.soft_max_decision as Record<string, any> | undefined
+    const isSoftMaxRounds = reason === 'max_rounds_reached'
 
     const proceedAnyway = async () => {
         try {
@@ -1343,6 +2149,19 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
             refetch()
         } catch (err: any) {
             toast.error(getApiError(err, 'Override failed'))
+        }
+    }
+
+    const askSupplierToRevise = async () => {
+        try {
+            await requestRequote.mutateAsync({
+                id: negotiation.id,
+                buyer_message: buyerMessage || undefined,
+            })
+            toast.success('Asked supplier to revise their quote')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to ask supplier for a revised quote'))
         }
     }
 
@@ -1359,8 +2178,40 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
     return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
             <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> Negotiation Paused — Supplier Deviated from Brief
+                <AlertTriangle className="h-3.5 w-3.5" /> {isSoftMaxRounds ? 'Negotiation Paused — Max Rounds Reached' : 'Negotiation Paused — Supplier Deviated from Brief'}
             </p>
+            {isSoftMaxRounds && (
+                <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-2">
+                    <p className="text-sm text-amber-950 font-medium">
+                        The supplier hit your automated round limit, but the lane does not look finished yet.
+                    </p>
+                    {softMaxDecision?.summary && (
+                        <p className="text-xs text-amber-900 whitespace-pre-wrap">{String(softMaxDecision.summary)}</p>
+                    )}
+                    <div className="flex flex-wrap gap-2 text-[11px] text-amber-800">
+                        {typeof softMaxDecision?.target_metric === 'number' && typeof softMaxDecision?.current_metric === 'number' && (
+                            <span className="rounded-full border border-amber-200 bg-amber-100/60 px-2 py-0.5">
+                                Current: {fmt(Number(softMaxDecision.current_metric))}
+                            </span>
+                        )}
+                        {typeof softMaxDecision?.target_metric === 'number' && (
+                            <span className="rounded-full border border-amber-200 bg-amber-100/60 px-2 py-0.5">
+                                Target: {fmt(Number(softMaxDecision.target_metric))}
+                            </span>
+                        )}
+                        {typeof softMaxDecision?.ceiling_metric === 'number' && (
+                            <span className="rounded-full border border-amber-200 bg-amber-100/60 px-2 py-0.5">
+                                Ceiling: {fmt(Number(softMaxDecision.ceiling_metric))}
+                            </span>
+                        )}
+                        {typeof softMaxDecision?.momentum_score === 'number' && (
+                            <span className="rounded-full border border-amber-200 bg-amber-100/60 px-2 py-0.5">
+                                Momentum {(Number(softMaxDecision.momentum_score) * 100).toFixed(0)}%
+                            </span>
+                        )}
+                    </div>
+                </div>
+            )}
             {unknownParams && unknownParams.length > 0 && (
                 <div>
                     <p className="text-[11px] uppercase tracking-wide text-amber-600 mb-1">Terms outside your brief</p>
@@ -1378,15 +2229,17 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
             )}
 
             <div className="space-y-2 mt-2">
-                <p className="text-[10px] uppercase tracking-wide text-amber-600">How should the AI handle this deviation?</p>
+                <p className="text-[10px] uppercase tracking-wide text-amber-600">Optional supplier revision message</p>
                 <textarea
                     value={buyerMessage}
                     onChange={(e) => setBuyerMessage(e.target.value)}
-                    placeholder="(Optional) Provide guidance to the AI on how to handle these deviations... e.g. 'Push back on the quantity but accept the payment terms'"
+                    placeholder={isSoftMaxRounds
+                        ? "If you choose Tell Supplier to Revise, whatever you type here will be sent to the supplier. Leave blank to use the default best-and-final revision request."
+                        : "If you choose Ask Supplier to Revise, whatever you type here will be sent to the supplier. Leave blank to use the default revision request."}
                     className="w-full min-h-[80px] rounded-lg border border-amber-200 bg-white p-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
                 />
                 <p className="text-xs text-amber-700/80">
-                    If left blank, the AI will proceed without extra buyer guidance.
+                    This text is only used when you click <strong>{isSoftMaxRounds ? 'Tell Supplier to Revise' : 'Ask Supplier to Revise'}</strong>. It will be sent to the supplier exactly as written. If you leave it blank, the system sends a default revision request instead.
                 </p>
             </div>
 
@@ -1394,19 +2247,840 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
                 <Button
                     size="sm"
                     className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
-                    disabled={overrideNegotiation.isPending || endNegotiation.isPending}
+                    disabled={overrideNegotiation.isPending || requestRequote.isPending || endNegotiation.isPending}
                     onClick={proceedAnyway}
                 >
                     {overrideNegotiation.isPending
                         ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         : <Zap className="h-3.5 w-3.5" />}
-                    Proceed & Counter-Offer
+                    {isSoftMaxRounds ? 'Continue Negotiation' : 'Proceed & Counter-Offer'}
                 </Button>
                 <Button
                     size="sm"
                     variant="outline"
                     className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-1.5"
-                    disabled={overrideNegotiation.isPending || endNegotiation.isPending}
+                    disabled={overrideNegotiation.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={askSupplierToRevise}
+                >
+                    {requestRequote.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Send className="h-3.5 w-3.5" />}
+                    {isSoftMaxRounds ? 'Tell Supplier to Revise' : 'Ask Supplier to Revise'}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-1.5"
+                    disabled={overrideNegotiation.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End Negotiation
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── currency mismatch card ───────────────────────────────────────────────────
+
+function CurrencyMismatchCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const requestRequote = useRequestRequote()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'currency_mismatch') return null
+
+    const detected = (pending.detected_currency as string | undefined) ?? '(unknown)'
+    const expected = (pending.expected_currency as string | undefined) ?? '(unknown)'
+
+    const doRequote = async () => {
+        try {
+            await requestRequote.mutateAsync(negotiation.id)
+            toast.success('Asked supplier to requote in the correct currency')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to send requote request'))
+        }
+    }
+
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Negotiation Paused — Wrong Currency
+            </p>
+            <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-1">
+                <p className="text-sm text-amber-900">
+                    The supplier quoted in <span className="font-semibold">{detected}</span>, but your session requires{' '}
+                    <span className="font-semibold">{expected}</span>.
+                </p>
+                <p className="text-xs text-amber-700">
+                    Prices in different currencies cannot be compared. Ask the supplier to resend their offer in {expected}.
+                </p>
+            </div>
+            <div className="pt-1 flex flex-wrap gap-2">
+                <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                    disabled={requestRequote.isPending || endNegotiation.isPending}
+                    onClick={doRequote}
+                >
+                    {requestRequote.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                    Ask to Requote in {expected}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-1.5"
+                    disabled={requestRequote.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End Negotiation
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── final-quote variance card ────────────────────────────────────────────────
+
+function FinalQuoteVarianceCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const resolveVariance = useResolveVariance()
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (negotiation.status !== 'paused') return null
+    if (!pending || pending.reason !== 'final_quote_variance') return null
+
+    const variances: Array<{
+        line_number?: number
+        item_name?: string
+        agreed_price: number
+        revised_price: number
+        variance_pct: number
+    }> = pending.variances || []
+
+    const doAction = async (action: 'accept' | 'request_correction' | 'resume') => {
+        try {
+            await resolveVariance.mutateAsync({ id: negotiation.id, action })
+            toast.success({
+                accept: 'Final quote accepted. Negotiation closed.',
+                request_correction: 'Correction request sent to supplier.',
+                resume: 'Resuming negotiation with revised quote.',
+            }[action])
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Action failed'))
+        }
+    }
+
+    const isMulti = variances.length > 0 && variances[0].item_name != null
+
+    return (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 space-y-4">
+            <p className="text-xs font-bold text-orange-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Revised Quote Differs from Agreed Figures
+            </p>
+            <p className="text-sm text-orange-900">
+                The supplier's revised quote contains prices that differ materially from what was agreed upon.
+                Review the discrepancies below and choose how to proceed.
+            </p>
+
+            <div className="overflow-x-auto">
+                <table className="w-full text-xs border-collapse">
+                    <thead>
+                        <tr className="bg-orange-100 text-orange-800">
+                            {isMulti && <th className="text-left p-2 font-semibold border border-orange-200">Item</th>}
+                            <th className="text-right p-2 font-semibold border border-orange-200">Agreed</th>
+                            <th className="text-right p-2 font-semibold border border-orange-200">Received</th>
+                            <th className="text-right p-2 font-semibold border border-orange-200">Diff</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {variances.map((v, i) => (
+                            <tr key={i} className="bg-white even:bg-orange-50">
+                                {isMulti && (
+                                    <td className="p-2 border border-orange-200 text-orange-900 font-medium">
+                                        {v.item_name}
+                                    </td>
+                                )}
+                                <td className="p-2 border border-orange-200 text-right text-orange-900">
+                                    {v.agreed_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                </td>
+                                <td className="p-2 border border-orange-200 text-right text-orange-900">
+                                    {v.revised_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+                                </td>
+                                <td className={`p-2 border border-orange-200 text-right font-semibold ${v.revised_price > v.agreed_price ? 'text-red-600' : 'text-green-700'}`}>
+                                    {v.revised_price > v.agreed_price ? '+' : ''}{v.variance_pct.toFixed(2)}%
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+
+            <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-green-300 text-green-700 hover:bg-green-50"
+                    onClick={() => doAction('accept')}
+                    disabled={resolveVariance.isPending}
+                >
+                    <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
+                    Accept Anyway
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-orange-300 text-orange-700 hover:bg-orange-50"
+                    onClick={() => doAction('request_correction')}
+                    disabled={resolveVariance.isPending}
+                >
+                    <Send className="h-3.5 w-3.5 mr-1.5" />
+                    Ask Supplier to Correct
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-slate-300 text-slate-700 hover:bg-slate-50"
+                    onClick={() => doAction('resume')}
+                    disabled={resolveVariance.isPending}
+                >
+                    <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                    Resume Negotiation
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+function AwaitingRevisedQuoteCard({ negotiation }: { negotiation: Negotiation }) {
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'awaiting_revised_quote') return null
+    if (negotiation.status !== 'active' && negotiation.status !== 'paused') return null
+
+    const correctionRequested = Boolean(pending.correction_requested)
+
+    return (
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-sky-700 uppercase tracking-wide flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5" /> Awaiting Revised Quote
+            </p>
+            <div className="bg-white border border-sky-200 rounded-lg p-3 space-y-1">
+                <p className="text-sm text-sky-900">
+                    {correctionRequested
+                        ? 'A correction request was sent to the supplier. Waiting for them to resubmit with the agreed figures.'
+                        : 'The supplier accepted your figures in principle, but this lane remains open until they send a revised or final quote reflecting those agreed numbers.'}
+                </p>
+                <p className="text-xs text-sky-700">
+                    {correctionRequested
+                        ? 'The negotiation will resume automatically once the supplier replies with corrected prices.'
+                        : pending.supplier_notified
+                        ? 'The system already asked the supplier to send their updated quote.'
+                        : 'The supplier should still send a revised quote, but the automatic request did not go out successfully.'}
+                </p>
+            </div>
+        </div>
+    )
+}
+
+// ─── tax basis card ───────────────────────────────────────────────────────────
+
+function TaxBasisCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const requestRequote = useRequestRequote()
+    const acceptTerms = useAcceptCommercialTerms()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'tax_basis_ambiguity') return null
+
+    const doConfirm = async () => {
+        try {
+            await requestRequote.mutateAsync(negotiation.id)
+            toast.success('Asked supplier to confirm whether prices are inclusive or exclusive of VAT')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to send confirmation request'))
+        }
+    }
+
+    const doAccept = async () => {
+        try {
+            await acceptTerms.mutateAsync(negotiation.id)
+            toast.success('Accepted as-is — AI will continue with the quoted prices')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to accept terms'))
+        }
+    }
+
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Negotiation Paused — Tax Basis Unclear
+            </p>
+            <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-1">
+                <p className="text-sm text-amber-900">
+                    The supplier's quote appears to be <span className="font-semibold">exclusive of VAT</span> (ex-VAT).
+                </p>
+                <p className="text-xs text-amber-700">
+                    Before the AI continues, confirm whether to ask the supplier to clarify, or proceed with the quoted prices as-is.
+                </p>
+            </div>
+            <div className="pt-1 flex flex-wrap gap-2">
+                <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                    disabled={requestRequote.isPending || acceptTerms.isPending || endNegotiation.isPending}
+                    onClick={doConfirm}
+                >
+                    {requestRequote.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <AlertCircle className="h-3.5 w-3.5" />}
+                    Ask Supplier to Confirm
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
+                    disabled={requestRequote.isPending || acceptTerms.isPending || endNegotiation.isPending}
+                    onClick={doAccept}
+                >
+                    {acceptTerms.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Zap className="h-3.5 w-3.5" />}
+                    Accept As-Is &amp; Continue
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-1.5"
+                    disabled={requestRequote.isPending || acceptTerms.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End Negotiation
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── partial quote card (EC-32) ───────────────────────────────────────────────
+
+function PartialQuoteCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const acceptPartial = useAcceptPartialQuote()
+    const reissue = useReissueSupplierRequest()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'unquoted_line_items') return null
+
+    const unquoted = (pending.unquoted_items ?? []) as string[]
+    const supplierNotified = pending.supplier_notified as boolean | undefined
+
+    const doAccept = async () => {
+        try {
+            await acceptPartial.mutateAsync(negotiation.id)
+            toast.success('Accepted partial quote — proceeding with quoted lines')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to accept partial quote'))
+        }
+    }
+    const doReissue = async () => {
+        try {
+            await reissue.mutateAsync(negotiation.id)
+            toast.success('Reminder sent to supplier')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to send reminder'))
+        }
+    }
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Negotiation Paused — Partial Quote
+            </p>
+            <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-1">
+                <p className="text-sm text-amber-900">
+                    Supplier didn't price <span className="font-semibold">{unquoted.length}</span> item(s):
+                </p>
+                <ul className="list-disc list-inside space-y-0.5">
+                    {unquoted.map((name) => (
+                        <li key={name} className="text-sm text-amber-950">{name}</li>
+                    ))}
+                </ul>
+                {supplierNotified !== undefined && (
+                    <p className="text-xs text-amber-700 pt-1">
+                        {supplierNotified
+                            ? '✓ Supplier was automatically asked to complete their quote.'
+                            : '✗ Automated reminder to supplier failed — you can resend below.'}
+                    </p>
+                )}
+            </div>
+            <div className="pt-1 flex flex-wrap gap-2">
+                <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                    disabled={acceptPartial.isPending || reissue.isPending || endNegotiation.isPending}
+                    onClick={doAccept}
+                >
+                    {acceptPartial.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <Zap className="h-3.5 w-3.5" />}
+                    Accept Partial &amp; Continue
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
+                    disabled={acceptPartial.isPending || reissue.isPending || endNegotiation.isPending}
+                    onClick={doReissue}
+                >
+                    {reissue.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                    Resend Reminder
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-1.5"
+                    disabled={acceptPartial.isPending || reissue.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── price range card ─────────────────────────────────────────────────────────
+
+function PriceRangeCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const requestRequote = useRequestRequote()
+    const acceptRange = useAcceptPriceRange()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'price_range_quote') return null
+
+    const rmin = pending.price_range_min as number | undefined
+    const rmax = pending.price_range_max as number | undefined
+    const rangedLines = (pending.ranged_line_items ?? []) as Array<{
+        line_number?: number
+        item_name?: string
+        price_range_min: number
+        price_range_max: number
+    }>
+    const hasTopRange = rmin != null && rmax != null
+    const mid = hasTopRange ? (rmin! + rmax!) / 2 : null
+
+    const doAccept = async (basis: 'low' | 'midpoint' | 'high') => {
+        try {
+            await acceptRange.mutateAsync({ id: negotiation.id, basis })
+            toast.success(`Accepted ${basis} of range — negotiation resuming`)
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to accept price'))
+        }
+    }
+    const doAskCommit = async () => {
+        try {
+            await requestRequote.mutateAsync(negotiation.id)
+            toast.success('Asked supplier to commit to a single price')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to send request'))
+        }
+    }
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5" /> Negotiation Paused — Price Range Quoted
+            </p>
+            <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-2">
+                {hasTopRange && (
+                    <p className="text-sm text-amber-900">
+                        Supplier quoted a range: <span className="font-semibold">{rmin}</span> – <span className="font-semibold">{rmax}</span>
+                    </p>
+                )}
+                {rangedLines.length > 0 && (
+                    <div>
+                        <p className="text-xs uppercase tracking-wide text-amber-700 mb-1">Per-line ranges</p>
+                        <ul className="space-y-0.5">
+                            {rangedLines.map((rl, i) => (
+                                <li key={i} className="text-sm text-amber-900">
+                                    <span className="font-medium">{rl.item_name ?? `Line ${rl.line_number ?? i + 1}`}</span>
+                                    : <span className="font-semibold">{rl.price_range_min}</span> – <span className="font-semibold">{rl.price_range_max}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
+                <p className="text-xs text-amber-700">
+                    Pick a basis to continue (applied to all ranges), or ask the supplier to commit to a single firm price.
+                </p>
+            </div>
+            <div className="pt-1 flex flex-wrap gap-2">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
+                    disabled={acceptRange.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={() => doAccept('low')}
+                >
+                    Use lower{hasTopRange ? ` (${rmin})` : ''}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
+                    disabled={acceptRange.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={() => doAccept('midpoint')}
+                >
+                    Use midpoint{mid != null ? ` (${mid.toFixed(2)})` : ''}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100 gap-1.5"
+                    disabled={acceptRange.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={() => doAccept('high')}
+                >
+                    Use upper{hasTopRange ? ` (${rmax})` : ''}
+                </Button>
+                <Button
+                    size="sm"
+                    className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                    disabled={acceptRange.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={doAskCommit}
+                >
+                    {requestRequote.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                    Ask Supplier to Commit
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-amber-200 text-amber-700 hover:bg-amber-100 gap-1.5"
+                    disabled={acceptRange.isPending || requestRequote.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+// ─── send failed card ─────────────────────────────────────────────────────────
+
+function SendFailedCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const resumeNegotiation = useResumeNegotiation()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'send_failed') return null
+
+    const sendError = (pending.send_error as string | undefined) ?? 'An error occurred while sending the email.'
+
+    const doRetry = async () => {
+        try {
+            await resumeNegotiation.mutateAsync(negotiation.id)
+            toast.success('Retrying email send…')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Retry failed'))
+        }
+    }
+
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-red-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5" /> Email Send Failed
+            </p>
+            <div className="bg-white border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-900 whitespace-pre-wrap">{sendError}</p>
+                <FailureMeta pending={pending} />
+            </div>
+            <p className="text-xs text-red-700">
+                The outbound email could not be delivered. You can retry or end this supplier thread.
+            </p>
+            <div className="pt-1 flex flex-wrap gap-2">
+                <Button
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                    disabled={resumeNegotiation.isPending || endNegotiation.isPending}
+                    onClick={doRetry}
+                >
+                    {resumeNegotiation.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                    Retry Send
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-700 hover:bg-red-100 gap-1.5"
+                    disabled={resumeNegotiation.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End Negotiation
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+function ProcessingBlockedCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const resumeNegotiation = useResumeNegotiation()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    if (!pending || pending.reason !== 'processing_blocked') return null
+
+    const message = (pending.failure_message as string | undefined) ?? 'Background processing is temporarily unavailable.'
+    const stage = (pending.failure_stage as string | undefined)?.replace(/_/g, ' ')
+
+    const doRetry = async () => {
+        try {
+            await resumeNegotiation.mutateAsync(negotiation.id)
+            toast.success('Retrying background processing…')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Retry failed'))
+        }
+    }
+
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-red-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5" /> Processing Temporarily Blocked
+            </p>
+            <div className="bg-white border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-900 whitespace-pre-wrap">{message}</p>
+                {stage && <p className="text-xs text-red-700 mt-2">Stage: {stage}</p>}
+                <FailureMeta pending={pending} />
+            </div>
+            <p className="text-xs text-red-700">
+                Nexotropi did not complete this supplier-processing step. You can retry the workflow or end this supplier thread.
+            </p>
+            <div className="pt-1 flex flex-wrap gap-2">
+                <Button
+                    size="sm"
+                    className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                    disabled={resumeNegotiation.isPending || endNegotiation.isPending}
+                    onClick={doRetry}
+                >
+                    {resumeNegotiation.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                    Retry Processing
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-700 hover:bg-red-100 gap-1.5"
+                    disabled={resumeNegotiation.isPending || endNegotiation.isPending}
+                    onClick={doEnd}
+                >
+                    {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    End Negotiation
+                </Button>
+            </div>
+        </div>
+    )
+}
+
+function formatSafetyDetail(errorCode: string | undefined, detail: any): string | null {
+    if (!detail || typeof detail !== 'object') return null
+    const fmt = (n: any) => (typeof n === 'number' ? n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : String(n))
+    switch (errorCode) {
+        case 'ai_counteroffer_exceeds_max_price':
+            return detail.price != null && detail.max != null
+                ? `AI proposed price ${fmt(detail.price)}, which exceeds your max of ${fmt(detail.max)}.`
+                : null
+        case 'ai_counteroffer_below_floor':
+            return detail.price != null && detail.floor != null
+                ? `AI proposed price ${fmt(detail.price)}, which is below your floor of ${fmt(detail.floor)}.`
+                : null
+        case 'ai_counteroffer_quantity_below_min':
+            return detail.qty != null && detail.min != null
+                ? `AI proposed quantity ${detail.qty}, which is below your minimum of ${detail.min}.`
+                : null
+        default:
+            return null
+    }
+}
+
+function StrategyFailureCard({ negotiation, refetch }: { negotiation: Negotiation; refetch: () => void }) {
+    const resumeNegotiation = useResumeNegotiation()
+    const endNegotiation = useEndNegotiation()
+
+    if (negotiation.status !== 'paused') return null
+    const pending = negotiation.pending_counteroffer as Record<string, any> | null
+    const reason = pending?.reason as string | undefined
+    if (!pending || (reason !== 'strategy_failed' && reason !== 'strategy_unsafe')) return null
+
+    const isUnsafe = reason === 'strategy_unsafe'
+    const errorCode = pending.failure_error_code as string | undefined
+    const message = (pending.failure_message as string | undefined) ?? (
+        isUnsafe
+            ? 'The AI draft exceeded your constraints and was blocked before anything was sent.'
+            : 'The AI could not generate a counter-offer draft for this supplier reply.'
+    )
+    const humanDetail = isUnsafe ? formatSafetyDetail(errorCode, pending.safety_detail) : null
+    const constraintsHref = `/user/negotiation/${negotiation.session_id}#constraints`
+
+    const doRetry = async () => {
+        try {
+            await resumeNegotiation.mutateAsync(negotiation.id)
+            toast.success(isUnsafe ? 'Re-running AI workflow…' : 'Retrying AI workflow…')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Retry failed'))
+        }
+    }
+
+    const doEnd = async () => {
+        try {
+            await endNegotiation.mutateAsync(negotiation.id)
+            toast.success('Negotiation ended')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to end negotiation'))
+        }
+    }
+
+    return (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 space-y-3">
+            <p className="text-xs font-bold text-red-700 uppercase tracking-wide flex items-center gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5" /> {isUnsafe ? 'AI Draft Blocked by Constraints' : 'AI Strategy Failed'}
+            </p>
+            <div className="bg-white border border-red-200 rounded-lg p-3">
+                <p className="text-sm text-red-900 whitespace-pre-wrap">{message}</p>
+                {humanDetail && (
+                    <p className="text-xs text-red-800 mt-2">{humanDetail}</p>
+                )}
+                <FailureMeta pending={pending} />
+            </div>
+            {isUnsafe ? (
+                <p className="text-xs text-red-700">
+                    No supplier email was sent. Retrying with the same constraints is likely to produce the same draft —
+                    review and update your constraints first, then retry. If you don't want the AI to handle this round,
+                    end the negotiation and follow up manually.
+                </p>
+            ) : (
+                <p className="text-xs text-red-700">
+                    No supplier email was sent. You can retry the workflow or end this supplier thread.
+                </p>
+            )}
+            <div className="pt-1 flex flex-wrap gap-2">
+                {isUnsafe && (
+                    <Link href={constraintsHref}>
+                        <Button
+                            size="sm"
+                            className="bg-red-600 hover:bg-red-700 text-white gap-1.5"
+                            disabled={resumeNegotiation.isPending || endNegotiation.isPending}
+                        >
+                            <Settings2 className="h-3.5 w-3.5" />
+                            Edit Constraints
+                        </Button>
+                    </Link>
+                )}
+                <Button
+                    size="sm"
+                    className={isUnsafe
+                        ? 'bg-white text-red-700 border border-red-300 hover:bg-red-100 gap-1.5'
+                        : 'bg-red-600 hover:bg-red-700 text-white gap-1.5'}
+                    disabled={resumeNegotiation.isPending || endNegotiation.isPending}
+                    onClick={doRetry}
+                >
+                    {resumeNegotiation.isPending
+                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        : <RotateCcw className="h-3.5 w-3.5" />}
+                    {isUnsafe ? 'Try Again Anyway' : 'Retry Strategy'}
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-red-200 text-red-700 hover:bg-red-100 gap-1.5"
+                    disabled={resumeNegotiation.isPending || endNegotiation.isPending}
                     onClick={doEnd}
                 >
                     {endNegotiation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -1505,27 +3179,85 @@ function ClarificationBanner({
 function EscalationCard({
     escalation,
     negotiationId,
+    supplier,
     refetch,
 }: {
     escalation: NegotiationEscalation
     negotiationId: string
+    supplier?: Supplier
     refetch: () => void
 }) {
+    const previewEscalation = usePreviewNegotiationEscalation()
     const resolveEscalation = useResolveNegotiationEscalation()
     const [strategy, setStrategy] = useState<'answer' | 'proceed_without_answer' | 'pause_negotiation' | 'end_negotiation'>('answer')
     const [buyerAnswer, setBuyerAnswer] = useState('')
     const [showEmail, setShowEmail] = useState(false)
+    const [attachments, setAttachments] = useState<File[]>([])
+    const [preview, setPreview] = useState<NegotiationEscalationPreview | null>(null)
+
+    const canAttachFiles = strategy !== 'end_negotiation'
+
+    const buildAttachmentPayloads = async () => {
+        return Promise.all(attachments.map(file => new Promise<{
+            content: string
+            content_type: string
+            filename: string
+            size: number
+        }>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+                const result = String(reader.result || '')
+                resolve({
+                    content: result.includes(',') ? result.split(',')[1] : result,
+                    content_type: file.type || 'application/octet-stream',
+                    filename: file.name,
+                    size: file.size,
+                })
+            }
+            reader.onerror = () => reject(reader.error)
+            reader.readAsDataURL(file)
+        })))
+    }
+
+    useEffect(() => {
+        setPreview(null)
+    }, [strategy, buyerAnswer, attachments])
+
+    const buildPayload = async () => {
+        const attachmentPayloads = canAttachFiles && attachments.length
+            ? await buildAttachmentPayloads()
+            : undefined
+        return {
+            resolution_strategy: strategy,
+            buyer_answer: buyerAnswer || undefined,
+            attachments: attachmentPayloads,
+        } as const
+    }
+
+    const handlePreview = async () => {
+        try {
+            const payload = await buildPayload()
+            const previewData = await previewEscalation.mutateAsync({
+                negotiationId,
+                escalationId: escalation.id,
+                data: payload,
+            })
+            setPreview(previewData)
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to generate email preview'))
+        }
+    }
 
     const handleSubmit = async () => {
         try {
+            const payload = await buildPayload()
             await resolveEscalation.mutateAsync({
                 negotiationId,
                 escalationId: escalation.id,
-                data: {
-                    resolution_strategy: strategy,
-                    buyer_answer: buyerAnswer || undefined,
-                },
+                data: payload,
             })
+            setAttachments([])
+            setPreview(null)
             toast.success('Supplier question resolved')
             refetch()
         } catch (err: any) {
@@ -1541,6 +3273,11 @@ function EscalationCard({
             <div>
                 <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">AI summary</p>
                 <p className="text-sm text-amber-950 font-medium">{escalation.supplier_question_summary}</p>
+                <p className="mt-2 text-xs text-amber-800">
+                    This action sends a real email reply to <span className="font-medium">{supplier?.name || 'the supplier'}</span>
+                    {supplier?.email ? <> at <span className="font-medium">{supplier.email}</span></> : null}
+                    {" "}on the existing supplier thread.
+                </p>
                 <button
                     onClick={() => setShowEmail(v => !v)}
                     className="mt-2 text-xs text-amber-700 hover:underline"
@@ -1561,12 +3298,17 @@ function EscalationCard({
                     <span>Answer supplier directly</span>
                 </label>
                 {strategy === 'answer' && (
-                    <textarea
-                        value={buyerAnswer}
-                        onChange={(e) => setBuyerAnswer(e.target.value)}
-                        placeholder="Type your answer to the supplier"
-                        className="w-full min-h-[110px] rounded-lg border border-amber-200 bg-white p-3 text-sm text-gray-800"
-                    />
+                    <div className="space-y-2">
+                        <textarea
+                            value={buyerAnswer}
+                            onChange={(e) => setBuyerAnswer(e.target.value)}
+                            placeholder="Type the email reply that will be sent to the supplier"
+                            className="w-full min-h-[110px] rounded-lg border border-amber-200 bg-white p-3 text-sm text-gray-800"
+                        />
+                        <p className="text-[11px] text-amber-700">
+                            Your text becomes the email body. Nexotropi appends the sign-off automatically before sending.
+                        </p>
+                    </div>
                 )}
                 <label className="flex items-start gap-2 text-sm text-amber-950">
                     <input type="radio" checked={strategy === 'proceed_without_answer'} onChange={() => setStrategy('proceed_without_answer')} />
@@ -1582,18 +3324,95 @@ function EscalationCard({
                 </label>
             </div>
 
+            {canAttachFiles && (
+                <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-2">
+                    <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-amber-700 hover:text-amber-800">
+                        <Paperclip className="h-3.5 w-3.5" />
+                        Attach supporting files
+                        <input
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                                const selected = Array.from(e.target.files || [])
+                                setAttachments(prev => [...prev, ...selected])
+                                e.currentTarget.value = ''
+                            }}
+                        />
+                    </label>
+                    <p className="text-[11px] text-amber-700/80">
+                        Use this for drawings, revised specs, certificates, images, or addenda the supplier needs to answer correctly.
+                    </p>
+                    {attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                            {attachments.map((file, idx) => (
+                                <span
+                                    key={`${file.name}-${idx}`}
+                                    className="inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] text-amber-900"
+                                >
+                                    {file.name} ({Math.max(1, Math.round(file.size / 1024))}KB)
+                                    <button
+                                        type="button"
+                                        onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                                        className="text-amber-700 hover:text-red-600"
+                                        aria-label={`Remove ${file.name}`}
+                                    >
+                                        <XCircle className="h-3.5 w-3.5" />
+                                    </button>
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {preview && (
+                <div className="rounded-lg border border-amber-300 bg-white p-3 space-y-3">
+                    <div>
+                        <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">Email preview</p>
+                        <p className="text-xs text-gray-600">
+                            This exact message will be emailed to <span className="font-medium">{preview.recipient_name || supplier?.name || 'Supplier'}</span>
+                            {preview.recipient_email ? <> at <span className="font-medium">{preview.recipient_email}</span></> : null}.
+                        </p>
+                        {preview.attachment_count > 0 && (
+                            <p className="text-[11px] text-gray-500 mt-1">
+                                {preview.attachment_count} attachment{preview.attachment_count === 1 ? '' : 's'} will be included.
+                            </p>
+                        )}
+                    </div>
+                    <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+                        <pre className="whitespace-pre-wrap text-xs text-gray-800 font-sans">{preview.full_body}</pre>
+                    </div>
+                </div>
+            )}
+
             <div className="pt-1">
-                <Button
-                    size="sm"
-                    className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
-                    disabled={resolveEscalation.isPending || (strategy === 'answer' && !buyerAnswer.trim())}
-                    onClick={handleSubmit}
-                >
-                    {resolveEscalation.isPending
-                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        : <CheckCircle2 className="h-3.5 w-3.5" />}
-                    Send
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="border-amber-300 text-amber-800 bg-white hover:bg-amber-100 gap-1.5"
+                        disabled={previewEscalation.isPending || resolveEscalation.isPending || (strategy === 'answer' && !buyerAnswer.trim())}
+                        onClick={handlePreview}
+                    >
+                        {previewEscalation.isPending
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <Eye className="h-3.5 w-3.5" />}
+                        Preview email
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                        disabled={resolveEscalation.isPending || previewEscalation.isPending || !preview || (strategy === 'answer' && !buyerAnswer.trim())}
+                        onClick={handleSubmit}
+                    >
+                        {resolveEscalation.isPending
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Send email
+                    </Button>
+                </div>
             </div>
         </div>
     )
@@ -1612,7 +3431,7 @@ interface ParamRow {
 
 const TIER_STYLE: Record<ParamTier, { badge: string; dot: string; row: string }> = {
     hard:     { badge: 'bg-red-100 text-red-700 border-red-200',     dot: 'bg-red-400',    row: '' },
-    target:   { badge: 'bg-blue-100 text-[#1A4A7A] border-blue-200', dot: 'bg-blue-400',   row: '' },
+    target:   { badge: 'bg-blue-100 text-primary border-blue-200', dot: 'bg-blue-400',   row: '' },
     flexible: { badge: 'bg-gray-100 text-gray-500 border-gray-200',  dot: 'bg-gray-300',   row: '' },
 }
 
@@ -1645,7 +3464,7 @@ function ParamGroup({ title, rows }: { title: string; rows: ParamRow[] }) {
                             <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{row.tooltip}</p>
                         </div>
                         <div className="flex flex-col items-end gap-1 shrink-0">
-                            <span className={`text-xs font-bold ${row.tier === 'hard' ? 'text-red-700' : row.tier === 'target' ? 'text-[#1A4A7A]' : 'text-gray-600'}`}>
+                            <span className={`text-xs font-bold ${row.tier === 'hard' ? 'text-red-700' : row.tier === 'target' ? 'text-primary' : 'text-gray-600'}`}>
                                 {row.value}
                             </span>
                             <TierBadge tier={row.tier} />
@@ -1664,6 +3483,7 @@ function ConstraintsSidebar({ constraints, rfq }: { constraints: any; rfq: any }
     const brief = constraints.brief as { parameters?: any[]; spec_requirements?: any[] } | null
     const rfqMeta = buildRfqMeta(rfq?.description)
     const rfqDescription = compactRfqDescription(rfq?.description)
+    const baselineCurrency = constraints.currency || 'USD'
 
     // Build structured param rows from flat constraints
     const priceRows: ParamRow[] = []
@@ -1671,15 +3491,15 @@ function ConstraintsSidebar({ constraints, rfq }: { constraints: any; rfq: any }
 
     if (!isMultiItem) {
         if (constraints.max_price != null)
-            priceRows.push({ label: 'Max Price/unit', value: fmt(constraints.max_price), tier: 'hard', tooltip: 'Auto-rejects any offer above this price' })
+            priceRows.push({ label: 'Max Price/unit', value: fmt(constraints.max_price, baselineCurrency), tier: 'hard', tooltip: 'Auto-rejects any offer above this price' })
         if (constraints.total_budget_ceiling != null)
-            priceRows.push({ label: 'Total Budget', value: fmt(constraints.total_budget_ceiling), tier: 'hard', tooltip: 'Auto-rejects if total cost exceeds this' })
+            priceRows.push({ label: 'Total Budget', value: fmt(constraints.total_budget_ceiling, baselineCurrency), tier: 'hard', tooltip: 'Auto-rejects if total cost exceeds this' })
         if (constraints.target_price != null)
-            priceRows.push({ label: 'Target Price', value: fmt(constraints.target_price), tier: 'target', tooltip: 'AI aims to reach this price' })
+            priceRows.push({ label: 'Target Price', value: fmt(constraints.target_price, baselineCurrency), tier: 'target', tooltip: 'AI aims to reach this price' })
         if (constraints.auto_accept_threshold != null)
-            priceRows.push({ label: 'Auto-Accept At', value: fmt(constraints.auto_accept_threshold), tier: 'target', tooltip: 'Automatically accepts if supplier quotes at or below this' })
+            priceRows.push({ label: 'Auto-Accept At', value: fmt(constraints.auto_accept_threshold, baselineCurrency), tier: 'target', tooltip: 'Automatically accepts if supplier quotes at or below this' })
         if (constraints.min_acceptable_price != null)
-            priceRows.push({ label: 'Counter Floor', value: fmt(constraints.min_acceptable_price), tier: 'flexible', tooltip: 'AI will not counter-offer below this price' })
+            priceRows.push({ label: 'Counter Floor', value: fmt(constraints.min_acceptable_price, baselineCurrency), tier: 'flexible', tooltip: 'AI will not counter-offer below this price' })
         if (constraints.quantity != null)
             priceRows.push({ label: 'Quantity', value: String(constraints.quantity), tier: 'hard', tooltip: 'Required quantity — supplier must meet this' })
         if (constraints.min_quantity != null && constraints.min_quantity !== constraints.quantity)
@@ -1718,30 +3538,6 @@ function ConstraintsSidebar({ constraints, rfq }: { constraints: any; rfq: any }
                     </div>
                 </div>
             </div>
-
-            {/* Item name */}
-            {rfq?.item_name && (
-                <div className="rounded-xl border border-gray-200 bg-white px-4 py-3">
-                    <p className="text-[10px] uppercase tracking-wide text-gray-400 mb-0.5">Negotiating</p>
-                    <p className="font-semibold text-gray-900 text-sm">{rfq.item_name}</p>
-                    {rfqDescription && <p className="text-xs text-gray-400 mt-0.5">{rfqDescription}</p>}
-                    <div className="mt-2 flex flex-wrap gap-2">
-                        {rfq.line_items?.length > 0 && (
-                            <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] text-gray-600">
-                                {rfq.line_items.length} line items
-                            </span>
-                        )}
-                        {rfqMeta.slice(0, 3).map((item) => (
-                            <span
-                                key={item.label}
-                                className="rounded-full bg-gray-100 px-2 py-1 text-[11px] text-gray-600"
-                            >
-                                <span className="font-medium text-gray-700">{item.label}:</span> {item.value}
-                            </span>
-                        ))}
-                    </div>
-                </div>
-            )}
 
             {/* Single-item price params */}
             {!isMultiItem && (priceRows.length > 0 || deliveryRows.length > 0) && (
@@ -1785,7 +3581,7 @@ function ConstraintsSidebar({ constraints, rfq }: { constraints: any; rfq: any }
                                         <div className="flex items-center justify-between">
                                             <span className="text-gray-500">Target/unit</span>
                                             <div className="flex items-center gap-1.5">
-                                                <span className="font-bold text-[#1A4A7A]">{fmt(li.target_price_per_unit)}</span>
+                                                <span className="font-bold text-primary">{fmt(li.target_price_per_unit)}</span>
                                                 <TierBadge tier="target" />
                                             </div>
                                         </div>
@@ -1822,7 +3618,7 @@ function ConstraintsSidebar({ constraints, rfq }: { constraints: any; rfq: any }
                                         </div>
                                         <div className="flex flex-col items-end gap-1 shrink-0">
                                             {(p.boundary_value || p.target_value) && (
-                                                <span className={`text-xs font-semibold ${group.tier === 'hard' ? 'text-red-700' : group.tier === 'target' ? 'text-[#1A4A7A]' : 'text-gray-600'}`}>
+                                                <span className={`text-xs font-semibold ${group.tier === 'hard' ? 'text-red-700' : group.tier === 'target' ? 'text-primary' : 'text-gray-600'}`}>
                                                     {p.boundary_value || p.target_value}{p.unit ? ` ${p.unit}` : ''}
                                                 </span>
                                             )}
@@ -1888,6 +3684,11 @@ const STATUS_BADGE: Record<string, string> = {
     timed_out: 'bg-gray-200 text-gray-500 border-gray-300',
 }
 
+const LIFECYCLE_BADGE: Record<string, string> = {
+    bafo_requested: 'bg-yellow-50 text-yellow-700 border-yellow-200',
+    bafo_received: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+}
+
 const NEGOTIATION_REFRESH_EVENTS = new Set([
     'email_sent',
     'human_override',
@@ -1899,6 +3700,7 @@ const NEGOTIATION_REFRESH_EVENTS = new Set([
     'timed_out',
     'max_rounds_reached',
     'negotiation_accepted',
+    'final_quote_variance',
 ])
 
 const MESSAGE_REFRESH_EVENTS = new Set([
@@ -1954,8 +3756,8 @@ export default function NegotiationTimelinePage() {
     const negotiationId = params?.negotiationId as string
 
     const { data: negotiation, refetch: refetchNeg } = useNegotiation(negotiationId)
-    const { data: messages = [] } = useNegotiationMessages(negotiationId)
-    const { data: quoteRevisions = [] } = useNegotiationQuoteRevisions(negotiationId)
+    const { data: messages = [], isLoading: messagesLoading } = useNegotiationMessages(negotiationId)
+    const { data: quoteRevisions = [], isLoading: revisionsLoading } = useNegotiationQuoteRevisions(negotiationId)
     const { data: events = [] } = useNegotiationEvents(negotiationId)
     const { data: session } = useSession(sessionId)
     const { data: constraints } = useConstraints(sessionId)
@@ -1971,11 +3773,15 @@ export default function NegotiationTimelinePage() {
 
     const supplier = suppliers?.find((s: Supplier) => s.id === negotiation?.supplier_id)
     const rounds = groupByRound(messages, events)
-    const totalRounds = rounds.filter(r => r.round > 0).length
+    const totalRounds = negotiation?.current_round ?? 0
     const rfqMeta = buildRfqMeta(rfq?.description)
     const rfqDescription = compactRfqDescription(rfq?.description)
     const rfqLineItems: any[] = rfq?.line_items ?? []
     const latestQuoteRevision = quoteRevisions.length > 0 ? quoteRevisions[quoteRevisions.length - 1] : null
+    const bafoRequestEvent = [...events]
+        .reverse()
+        .find((event) => event.event_type === 'email_sent' && (((event.data as any)?.kind) === 'bafo_request' || event.title?.includes('BAFO request sent')))
+    const bafoRequestedAt = bafoRequestEvent?.created_at ?? null
 
     // Build lookup indexes for revisions
     const revisionByNumber = new Map<number, SupplierQuoteRevision>()
@@ -2144,19 +3950,28 @@ export default function NegotiationTimelinePage() {
                             <span className="text-gray-400 text-sm">· {supplier.company}</span>
                         )}
                         {supplier?.email && (
-                            <a href={`mailto:${supplier.email}`} className="text-xs text-gray-400 hover:text-[#1A4A7A] hover:underline truncate hidden sm:block">
+                            <a href={`mailto:${supplier.email}`} className="text-xs text-gray-400 hover:text-primary hover:underline truncate hidden sm:block">
                                 {supplier.email}
                             </a>
                         )}
                         <Badge className={`border text-xs ml-1 ${STATUS_BADGE[negotiation.status] || 'bg-gray-100 text-gray-600'}`}>
                             {negotiation.status.replace(/_/g, ' ')}
                         </Badge>
+                        {negotiation.lifecycle_state && LIFECYCLE_BADGE[negotiation.lifecycle_state] && (
+                            <Badge className={`border text-xs ${LIFECYCLE_BADGE[negotiation.lifecycle_state]}`}>
+                                {negotiation.lifecycle_label || negotiation.lifecycle_state.replace(/_/g, ' ')}
+                            </Badge>
+                        )}
                         {negotiation.end_reason && (
                             <span className="text-xs text-gray-400">{negotiation.end_reason.replace(/_/g, ' ')}</span>
                         )}
                     </div>
                     <div className="flex items-center gap-2 text-xs text-gray-400 shrink-0">
-                        <span>Round {Math.max(negotiation.current_round, totalRounds)} of {constraints?.max_rounds ?? '?'}</span>
+                        <span>
+                            {totalRounds > 0
+                                ? `Round ${totalRounds} of ${constraints?.max_rounds ?? '?'}`
+                                : 'No counteroffer sent yet'}
+                        </span>
                         {negotiation.ended_at && <span>· Ended {relTime(negotiation.ended_at)}</span>}
                     </div>
                     {!isTerminal && (
@@ -2188,7 +4003,7 @@ export default function NegotiationTimelinePage() {
                     <div className="flex flex-wrap gap-3">
                         {[
                             { label: 'Rounds', value: totalRounds > 0 ? `${totalRounds}` : '0' },
-                            { label: 'Messages', value: String(messages.length) },
+                            { label: 'Messages', value: messagesLoading ? '…' : String(messages.length) },
                             negotiation.agreed_price != null
                                 ? { label: 'Agreed Price', value: fmt(negotiation.agreed_price), accent: true }
                                 : null,
@@ -2203,8 +4018,25 @@ export default function NegotiationTimelinePage() {
                         ))}
                     </div>
 
+                    <BackendWorkflowInspector
+                        negotiation={negotiation}
+                        constraints={constraints}
+                        session={session}
+                        latestQuoteRevision={latestQuoteRevision}
+                        messages={messages}
+                        events={events}
+                    />
+
                     {/* Outcome banner */}
                     <OutcomeBanner negotiation={negotiation} events={events} />
+                    <AgreementTermsCard negotiation={negotiation} />
+
+                    <BAFOStatusCard
+                        negotiation={negotiation}
+                        session={session}
+                        latestQuoteRevision={latestQuoteRevision}
+                        events={events}
+                    />
 
                     {/* Pending approval */}
                     <PendingApprovalCard
@@ -2215,14 +4047,49 @@ export default function NegotiationTimelinePage() {
                         constraints={constraints}
                     />
 
+                    {/* Supplier quote extraction recovery */}
+                    <ManualQuoteEntryCard
+                        negotiation={negotiation}
+                        rfq={rfq}
+                        constraints={constraints}
+                        messages={messages}
+                        refetch={refetchNeg}
+                    />
+
+                    <ProcessingBlockedCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    <StrategyFailureCard negotiation={negotiation} refetch={refetchNeg} />
+
                     {/* Buyer intervention (unknown brief param / spec deviation) */}
                     <InterventionCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    {/* Currency mismatch — supplier quoted in wrong currency */}
+                    <CurrencyMismatchCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    {/* Revised final quote differs from agreed figures — buyer must resolve */}
+                    <FinalQuoteVarianceCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    {/* Supplier accepted in principle, but we still need the revised quote artifact */}
+                    <AwaitingRevisedQuoteCard negotiation={negotiation} />
+
+                    {/* Tax basis unclear — supplier quoted ex-VAT */}
+                    <TaxBasisCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    {/* Price range quoted — buyer picks basis or asks for firm price */}
+                    <PriceRangeCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    {/* Partial quote — buyer accepts partial, resends, or ends */}
+                    <PartialQuoteCard negotiation={negotiation} refetch={refetchNeg} />
+
+                    {/* Outbound email delivery failure */}
+                    <SendFailedCard negotiation={negotiation} refetch={refetchNeg} />
 
                     {/* Buyer resolution for supplier questions AI could not answer */}
                     {escalation?.status === 'open' && (
                         <EscalationCard
                             escalation={escalation}
                             negotiationId={negotiationId}
+                            supplier={supplier}
                             refetch={() => { refetchNeg(); refetchEscalation(); }}
                         />
                     )}
@@ -2338,7 +4205,7 @@ export default function NegotiationTimelinePage() {
                                 )}
                                 {rfq.response_deadline && (
                                     <span className="rounded-full bg-white/80 px-2.5 py-1 text-[11px] text-blue-800">
-                                        <span className="font-medium">Quote deadline:</span> {new Date(rfq.response_deadline).toLocaleDateString()}
+                                        <span className="font-medium">Submission deadline:</span> {new Date(rfq.response_deadline).toLocaleDateString()}
                                     </span>
                                 )}
                                 {rfq.deadline && (
@@ -2376,6 +4243,7 @@ export default function NegotiationTimelinePage() {
                         revisions={quoteRevisions}
                         rfq={rfq}
                         constraints={constraints}
+                        bafoRequestedAt={bafoRequestedAt}
                     />
 
                     {/* ── Events-based offer fallback (when Celery worker wasn't restarted in time) ── */}
@@ -2402,8 +4270,16 @@ export default function NegotiationTimelinePage() {
                         )
                     })()}
 
-                    {/* Empty state — only shown when truly no data at all */}
-                    {rounds.length === 0 && messages.length === 0 && !events.find(e => e.event_type === 'extraction_complete') && (
+                    {/* Loading state — messages query in flight (e.g. hard refresh) */}
+                    {messagesLoading && (
+                        <div className="rounded-xl border border-gray-200 bg-white p-10 text-center text-gray-400">
+                            <Loader2 className="h-6 w-6 mx-auto mb-3 animate-spin opacity-40" />
+                            <p className="text-sm">Loading conversation…</p>
+                        </div>
+                    )}
+
+                    {/* Empty state — only shown when data has loaded and there's genuinely nothing */}
+                    {!messagesLoading && rounds.length === 0 && messages.length === 0 && !events.find(e => e.event_type === 'extraction_complete') && (
                         <div className="rounded-xl border border-gray-200 bg-white p-12 text-center text-gray-400">
                             <FileText className="h-8 w-8 mx-auto mb-3 opacity-30" />
                             <p className="text-sm font-medium">No messages yet</p>
@@ -2411,9 +4287,9 @@ export default function NegotiationTimelinePage() {
                         </div>
                     )}
 
-                    {/* Timeline rounds */}
+                    {/* Timeline rounds — only render once messages have loaded */}
                     <div className="space-y-8">
-                        {rounds.map((group, idx) => (
+                        {!messagesLoading && rounds.map((group, idx) => (
                             <RoundSection
                                 key={group.round}
                                 group={group}

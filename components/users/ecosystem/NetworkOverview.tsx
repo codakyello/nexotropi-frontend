@@ -62,7 +62,7 @@ const SupplierNode = ({ data }: { data: NodeData }) => (
 );
 
 const CompanyNode = ({ data }: { data: NodeData }) => (
-    <div className="relative px-8 py-4 bg-[#1A4A7A] text-white rounded-lg shadow-xl flex items-center gap-3 min-w-[180px]">
+    <div className="relative px-8 py-4 bg-primary text-white rounded-lg shadow-xl flex items-center gap-3 min-w-[180px]">
         <Handle type="target" position={Position.Left} style={{ background: '#10b981' }} />
         <Handle type="source" position={Position.Right} style={{ background: '#6b7280' }} />
         <Handle type="target" position={Position.Top} style={{ background: '#10b981' }} />
@@ -437,7 +437,7 @@ export default function NetworkOverview() {
                             </div>
                         </div>
 
-                        <button className="w-full mt-6 bg-[#1A4A7A] hover:bg-[#153a61] text-white py-3 rounded-lg font-medium transition-colors">
+                        <button className="w-full mt-6 bg-primary hover:bg-primary text-white py-3 rounded-lg font-medium transition-colors">
                             View details
                         </button>
                     </div>

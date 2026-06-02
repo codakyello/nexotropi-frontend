@@ -48,10 +48,10 @@ const UserSettings = () => {
                 {activeTab === "integrations" && (
                     <div className="max-w-2xl space-y-3">
                         <Link href="/user/settings/email"
-                            className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-5 py-4 hover:border-[#1A4A7A] hover:shadow-sm transition-all group">
+                            className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-5 py-4 hover:border-primary hover:shadow-sm transition-all group">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <Mail className="h-5 w-5 text-[#1A4A7A]" />
+                                    <Mail className="h-5 w-5 text-primary" />
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2">
@@ -71,21 +71,21 @@ const UserSettings = () => {
                                     </p>
                                 </div>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#1A4A7A]" />
+                            <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary" />
                         </Link>
 
                         <Link href="/user/settings/company"
-                            className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-5 py-4 hover:border-[#1A4A7A] hover:shadow-sm transition-all group">
+                            className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-5 py-4 hover:border-primary hover:shadow-sm transition-all group">
                             <div className="flex items-center gap-4">
                                 <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
-                                    <Building2 className="h-5 w-5 text-[#1A4A7A]" />
+                                    <Building2 className="h-5 w-5 text-primary" />
                                 </div>
                                 <div>
                                     <p className="font-semibold text-gray-900">Company Profile</p>
                                     <p className="text-sm text-gray-500">Logo, branding colors, address, and legal info used on PDF RFQs</p>
                                 </div>
                             </div>
-                            <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-[#1A4A7A]" />
+                            <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-primary" />
                         </Link>
                     </div>
                 )}

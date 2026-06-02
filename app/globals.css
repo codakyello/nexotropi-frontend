@@ -33,6 +33,16 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
+  --color-brand-hover: var(--brand-hover);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -51,8 +61,13 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.46 0.18 264);
+  /* Brand navy — single source of truth (matches the previously-hardcoded #1A4A7A) */
+  --brand: #1A4A7A;
+  --brand-foreground: oklch(0.985 0 0);
+  --brand-hover: #153d65;
+  --primary: #1A4A7A;
   --primary-foreground: oklch(0.985 0 0);
+  --primary-hover: #153d65;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
@@ -60,6 +75,13 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Semantic status tokens — use these instead of ad-hoc emerald/amber/blue/red hex */
+  --success: oklch(0.62 0.14 152);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.78 0.16 75);
+  --warning-foreground: oklch(0.24 0.04 75);
+  --info: oklch(0.62 0.14 240);
+  --info-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
@@ -84,30 +106,72 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground relative min-h-screen;
-    /* Global SVG Noise Overlay for tactility */
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+    @apply bg-background text-foreground relative min-h-screen antialiased;
+    /* Subtle SVG noise overlay for tactility — kept very low opacity */
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.015'/%3E%3C/svg%3E");
     background-repeat: repeat;
     background-blend-mode: overlay;
+    font-feature-settings: "cv11", "ss01", "ss03";
   }
-  
+
   /* Typography Overrides */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-sans font-semibold tracking-tight;
+    @apply font-sans font-semibold tracking-tight text-foreground;
   }
-  
-  /* Hide scrollbar for clean neo-brutalist looks */
+  h1 { @apply text-3xl leading-tight; }
+  h2 { @apply text-2xl leading-tight; }
+  h3 { @apply text-lg leading-snug; }
+  h4 { @apply text-base leading-snug; }
+
+  /* Refined scrollbars — narrow, subtle, never grabs attention */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-muted-foreground/30 rounded-full;
+    @apply bg-muted-foreground/25 rounded-full;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-muted-foreground/50;
+    @apply bg-muted-foreground/40;
+  }
+}
+
+/* ── Reusable semantic surface tokens ────────────────────────────────────────
+   Use these for any pause/state card instead of rolling your own color combo.
+   Anything that needs a different shade should use the same status family.
+*/
+@layer components {
+  .surface-danger {
+    @apply rounded-xl border border-red-200 bg-red-50/80 p-4;
+  }
+  .surface-danger-title {
+    @apply text-xs font-bold text-red-700 uppercase tracking-wide flex items-center gap-1.5;
+  }
+  .surface-warning {
+    @apply rounded-xl border border-amber-200 bg-amber-50/80 p-4;
+  }
+  .surface-warning-title {
+    @apply text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5;
+  }
+  .surface-success {
+    @apply rounded-xl border border-emerald-200 bg-emerald-50/80 p-4;
+  }
+  .surface-success-title {
+    @apply text-xs font-bold text-emerald-700 uppercase tracking-wide flex items-center gap-1.5;
+  }
+  .surface-info {
+    @apply rounded-xl border border-blue-200 bg-blue-50/80 p-4;
+  }
+  .surface-info-title {
+    @apply text-xs font-bold text-blue-700 uppercase tracking-wide flex items-center gap-1.5;
+  }
+  /* Subtle elevated card — the workhorse */
+  .surface-card {
+    @apply rounded-xl border border-border bg-card shadow-sm;
   }
 }
