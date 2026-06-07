@@ -92,7 +92,7 @@ const REQUIRED_RFQ_FIELDS = [
     { label: 'Submission deadline', hint: 'The date by which suppliers must submit their quote — an acknowledgment is not enough' },
     { label: 'Delivery location', hint: 'Where goods should be shipped or performed' },
     { label: 'Payment terms', hint: 'The payment basis suppliers should quote against, such as Net 30' },
-    { label: 'Tax basis', hint: 'Whether quoted prices should be tax-inclusive or tax-exclusive' },
+    { label: 'Tax basis', hint: 'Optional: whether quoted prices should be tax-inclusive or tax-exclusive' },
 ]
 
 const normalizeCurrencyCode = (value: unknown): string | null => {
@@ -162,6 +162,12 @@ const parsePositiveInt = (value: unknown): number | undefined => {
     if (!match) return undefined
     const parsed = Number(match[0])
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined
+}
+
+const isPastIsoDate = (value: string | undefined): boolean => {
+    if (!value) return false
+    const parsed = new Date(value)
+    return Number.isFinite(parsed.getTime()) && parsed.getTime() <= Date.now()
 }
 
 const findExtractedFieldValue = (result: RFQExtractionResult | null, key: string): string | null => {
@@ -252,6 +258,7 @@ const validateRequiredRfqFields = (result: RFQExtractionResult, fieldValues: Rec
 
     if (!governingFields?.currency) missing.push('Currency')
     if (!governingFields?.response_deadline) missing.push('Submission deadline')
+    if (isPastIsoDate(governingFields?.response_deadline)) missing.push('Future submission deadline')
     if (!governingFields?.delivery_location) missing.push('Delivery location')
     if (!fieldValue('delivery_working_days') && !fieldValue('delivery_date')) {
         missing.push('Delivery lead time or date')
@@ -263,6 +270,49 @@ const validateRequiredRfqFields = (result: RFQExtractionResult, fieldValues: Rec
 
     if (missing.length === 0) return null
     return `The following required fields could not be found or parsed: ${missing.join(', ')}.`
+}
+
+const validateDocumentCurrencyMatchesSession = (
+    documentFields: DocumentGoverningFields | undefined,
+    sessionCurrency: string,
+) => {
+    const documentCurrency = normalizeCurrencyCode(documentFields?.currency)
+    const selectedCurrency = normalizeCurrencyCode(sessionCurrency)
+    if (!documentCurrency || !selectedCurrency || documentCurrency === selectedCurrency) return null
+    return `Uploaded RFQ currency is ${documentCurrency} but session currency is ${selectedCurrency}. Reupload an RFQ that matches this setup before continuing.`
+}
+
+const validateDocumentFieldsForSetup = (
+    documentFields: DocumentGoverningFields | undefined,
+    options: {
+        sessionCurrency: string
+        sessionQuantity?: number
+        isMultiItem: boolean
+    },
+) => {
+    const errors: string[] = []
+    const currencyMismatch = validateDocumentCurrencyMatchesSession(documentFields, options.sessionCurrency)
+    if (currencyMismatch) errors.push(currencyMismatch)
+
+    if (!documentFields?.currency) errors.push('Your uploaded RFQ must clearly state the pricing currency.')
+    if (!documentFields?.response_deadline) errors.push('Your uploaded RFQ must clearly state the submission deadline.')
+    if (isPastIsoDate(documentFields?.response_deadline)) {
+        errors.push('Your uploaded RFQ submission deadline is in the past. Reupload an RFQ with a future submission deadline.')
+    }
+    if (!documentFields?.delivery_location) errors.push('Your uploaded RFQ must clearly state the delivery location.')
+    if (!documentFields?.delivery_working_days && !documentFields?.delivery_date) {
+        errors.push('Your uploaded RFQ must clearly state the delivery lead time or delivery date.')
+    }
+    if (!documentFields?.payment_terms) errors.push('Your uploaded RFQ must clearly state the payment terms.')
+    const documentQuantity = parsePositiveInt(documentFields?.quantity)
+    if (!options.isMultiItem && !documentQuantity) {
+        errors.push('Your uploaded RFQ must clearly state the quantity or scope.')
+    }
+    if (!options.isMultiItem && documentQuantity && options.sessionQuantity && documentQuantity !== options.sessionQuantity) {
+        errors.push(`Uploaded RFQ quantity is ${documentQuantity}, but session quantity is ${options.sessionQuantity}. Reupload an RFQ that matches this setup before continuing.`)
+    }
+
+    return errors
 }
 
 // ── Extracted field row ─────────────────────────────────────────────────────
@@ -760,16 +810,6 @@ const NegotiationForm = () => {
                 return toast.error('Enter your target price and max price ceiling in the Negotiation Brief above')
             }
         }
-        if (!documentGoverningFields?.currency) {
-            return toast.error('Your uploaded RFQ must clearly state the pricing currency before this session can be activated')
-        }
-        if (!documentGoverningFields?.response_deadline) {
-            return toast.error('Your uploaded RFQ must clearly state the submission deadline before this session can be activated')
-        }
-        if (!documentGoverningFields?.delivery_location) {
-            return toast.error('Your uploaded RFQ must clearly state the delivery location before this session can be activated')
-        }
-
         try {
             // Persist any final edits made after extraction before constraints activate
             // the session. The backend preserves the original uploaded RFQ attachment
@@ -780,7 +820,7 @@ const NegotiationForm = () => {
                     item_name: title,
                     content: uploadedText || `[Uploaded file: ${savedRfqFilename || 'RFQ'}]`,
                     description: uploadedText || `[Uploaded file: ${savedRfqFilename || 'RFQ'}]`,
-                    response_deadline: documentGoverningFields.response_deadline,
+                    response_deadline: documentGoverningFields?.response_deadline,
                     line_items: isMultiItem ? lineItems : undefined,
                     document_governing_fields: documentGoverningFields,
                 },
@@ -865,7 +905,9 @@ const NegotiationForm = () => {
     // ── Inline validation errors ─────────────────────────────────────────────
     const errors = useMemo(() => {
         const e: Record<string, string> = {}
-
+        const documentGoverningFields =
+            buildDocumentGoverningFields(extraction, fieldValues)
+            || normalizeStoredDocumentGoverningFields(resumeRfq?.draft_email?.document_governing_fields)
         if (!isMultiItem) {
             // Validate price Brief card (unit_price only — the private numeric target)
             const priceTarget  = briefParam('unit_price')?.target_value
@@ -893,7 +935,7 @@ const NegotiationForm = () => {
         if (maxRounds < 1 || maxRounds > 20) e.maxRounds = 'Must be between 1 and 20'
 
         return e
-    }, [brief, autoAcceptThreshold, maxRounds, isMultiItem, lineItems])  // eslint-disable-line react-hooks/exhaustive-deps
+    }, [brief, autoAcceptThreshold, maxRounds, isMultiItem, lineItems, extraction, fieldValues, resumeRfq?.draft_email?.document_governing_fields, currency])  // eslint-disable-line react-hooks/exhaustive-deps
 
     // Button enabled when brief has required values filled and no errors
     const briefReady = !isMultiItem
@@ -1369,6 +1411,7 @@ const NegotiationForm = () => {
                                     {['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NGN'].map(c => <option key={c}>{c}</option>)}
                                 </select>
                             </div>
+
 
                             {/* Price & quantity — single-item */}
                             {!isMultiItem && (
