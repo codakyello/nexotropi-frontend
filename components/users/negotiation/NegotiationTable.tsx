@@ -12,6 +12,7 @@ const STATUS_BADGE: Record<string, string> = {
     awaiting_rfq: 'border-sky-500/30 bg-sky-500/10 text-sky-600',
     active: 'border-primary/30 bg-primary/10 text-primary',
     paused: 'border-orange-500/30 bg-orange-500/10 text-orange-500',
+    awarded: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
     ended: 'border-green-500/30 bg-green-500/10 text-green-500',
     cancelled: 'border-destructive/30 bg-destructive/10 text-destructive',
     awaiting_constraints: 'border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground',
@@ -26,7 +27,7 @@ const PHASE_PROGRESS: Record<string, number> = {
 const sessionProgress = (session: Session) => {
     if (session.status === 'awaiting_rfq') return 5
     if (session.status === 'awaiting_constraints') return 15
-    if (session.status === 'ended' || session.status === 'cancelled') return 100
+    if (session.status === 'awarded' || session.status === 'ended' || session.status === 'cancelled') return 100
     return PHASE_PROGRESS[session.negotiation_phase] ?? 10
 }
 
@@ -95,7 +96,7 @@ const NegotiationTable = () => {
                                     <div className="flex items-center gap-3">
                                         <div className="w-24 h-1.5 bg-black/20 rounded-full overflow-hidden border border-white/5">
                                             <div 
-                                                className={`h-full ${s.status === 'active' ? 'bg-primary' : s.status === 'ended' ? 'bg-green-500' : 'bg-muted-foreground'} transition-all duration-1000 ease-out`}
+                                                className={`h-full ${s.status === 'active' ? 'bg-primary' : s.status === 'awarded' || s.status === 'ended' ? 'bg-green-500' : 'bg-muted-foreground'} transition-all duration-1000 ease-out`}
                                                 style={{ width: `${progress}%` }} 
                                             />
                                         </div>

@@ -6,10 +6,9 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <body
-        >
+        <>
             <AuthHeader />
             {children}
-        </body>
+        </>
     );
 }

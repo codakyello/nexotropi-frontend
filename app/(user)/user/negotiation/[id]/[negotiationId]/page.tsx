@@ -20,7 +20,7 @@ import {
     usePendingClarification, useResolveClarification, useNegotiationsBySession,
     useNegotiationQuoteRevisions,
     useNegotiationEscalation, usePreviewNegotiationEscalation, useResolveNegotiationEscalation,
-    useSubmitManualQuote, useRequestRequote, useAcceptCommercialTerms, useAcceptPriceRange,
+    useSubmitManualQuote, useRequestRequote, useRequestMissingFields, useAcceptCommercialTerms, useAcceptPriceRange,
     useAcceptPartialQuote, useReissueSupplierRequest, useResolveVariance,
     subscribeToNegotiationEvents,
     downloadNegotiationAttachment, getAttachmentPresignedUrl,
@@ -155,6 +155,7 @@ function inspectorNextStep({
         if (reason === 'price_range_quote') return 'Backend detected a quoted range and is waiting for buyer choice of low, midpoint, high, or a requote request.'
         if (reason === 'max_rounds_reached') return 'Backend hit the automated round limit, but paused instead of ending because the supplier still looks close enough or is improving. Buyer can continue, ask for a revision, or end the lane.'
         if (reason === 'send_failed') return 'Backend produced a valid outbound message but the provider send step failed. Retry will resend the stored draft.'
+        if (reason === 'price_exceeds_max_repeated') return 'Supplier has exceeded your budget ceiling multiple times. Buyer must decide: override to continue, ask for a revision, or end the negotiation.'
         return 'Backend has intentionally paused this lane and is waiting for a buyer-visible intervention path.'
     }
     if (negotiation.status === 'active') {
@@ -526,7 +527,37 @@ function OutcomeBanner({ negotiation, events }: { negotiation: Negotiation; even
             </div>
         )
     }
-    return null
+    if (reason === 'supplier_ghosted') {
+        return (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex gap-3">
+                <Clock className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-semibold text-gray-700 text-sm">Supplier went silent</p>
+                    <p className="text-gray-500 text-sm mt-0.5">The supplier stopped responding after multiple follow-ups. The negotiation was closed automatically.</p>
+                </div>
+            </div>
+        )
+    }
+    if (reason === 'session_cancelled') {
+        return (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex gap-3">
+                <Ban className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
+                <div>
+                    <p className="font-semibold text-gray-700 text-sm">Session cancelled</p>
+                    <p className="text-gray-500 text-sm mt-0.5">The parent session was cancelled, ending all its negotiations.</p>
+                </div>
+            </div>
+        )
+    }
+    return (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 flex gap-3">
+            <XCircle className="h-5 w-5 text-gray-400 shrink-0 mt-0.5" />
+            <div>
+                <p className="font-semibold text-gray-700 text-sm">Negotiation ended</p>
+                <p className="text-gray-500 text-sm mt-0.5">Reason: {reason.replace(/_/g, ' ')}</p>
+            </div>
+        </div>
+    )
 }
 
 function agreementTermDisplay(key: string, value: any) {
@@ -648,6 +679,22 @@ const EVENT_STYLE: Record<string, { bg: string; text: string; icon: React.ReactN
     late_supplier_response: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: <Clock className="h-3 w-3" /> },
     quote_received: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: <FileText className="h-3 w-3" /> },
     safety_check_started: { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-500', icon: <Zap className="h-3 w-3" /> },
+    safety_check_passed: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: <CheckCircle2 className="h-3 w-3" /> },
+    negotiation_accepted: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: <Trophy className="h-3 w-3" /> },
+    bafo_requested: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: <Sparkles className="h-3 w-3" /> },
+    bafo_received: { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', icon: <CheckCircle2 className="h-3 w-3" /> },
+    timed_out: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: <Clock className="h-3 w-3" /> },
+    max_rounds_reached: { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', icon: <AlertTriangle className="h-3 w-3" /> },
+    hard_violation: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: <XCircle className="h-3 w-3" /> },
+    paused: { bg: 'bg-gray-50 border-gray-200', text: 'text-gray-500', icon: <Clock className="h-3 w-3" /> },
+    resumed: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: <Zap className="h-3 w-3" /> },
+    negative_signal: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: <AlertTriangle className="h-3 w-3" /> },
+    collection_threshold_met: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: <CheckCircle2 className="h-3 w-3" /> },
+    human_override: { bg: 'bg-purple-50 border-purple-200', text: 'text-purple-700', icon: <Zap className="h-3 w-3" /> },
+    approval_granted: { bg: 'bg-green-50 border-green-200', text: 'text-green-700', icon: <CheckCircle2 className="h-3 w-3" /> },
+    approval_rejected: { bg: 'bg-red-50 border-red-200', text: 'text-red-700', icon: <XCircle className="h-3 w-3" /> },
+    clarification_sent: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: <FileText className="h-3 w-3" /> },
+    clarification_received: { bg: 'bg-blue-50 border-blue-200', text: 'text-blue-700', icon: <FileText className="h-3 w-3" /> },
 }
 
 function eventViolationDetail(ev: NegotiationEvent): string | null {
@@ -734,6 +781,12 @@ function ExtractedOfferCard({ offer, isViolation }: { offer: Record<string, any>
                         <span className={`flex items-center gap-1 text-xs font-medium ${textColor}`}>
                             <CreditCard className="h-3.5 w-3.5" />
                             <span className="text-gray-400 font-normal">Payment:</span> {offer.payment_days} days
+                        </span>
+                    )}
+                    {offer.payment_days == null && offer.payment_terms_text && (
+                        <span className={`flex items-center gap-1 text-xs font-medium ${textColor}`}>
+                            <CreditCard className="h-3.5 w-3.5" />
+                            <span className="text-gray-400 font-normal">Payment:</span> {offer.payment_terms_text}
                         </span>
                     )}
                 </div>
@@ -883,6 +936,12 @@ function RFQvsQuoteCard({ offer, rfq, isViolation, constraints, revision, previo
                     <span className={`flex items-center gap-1 text-xs border rounded-full px-2 py-1 ${termTone(paymentDays, toNum(constraints?.payment_terms_max_days), 'hard')}`}>
                         <CreditCard className="h-3.5 w-3.5 text-gray-400" />
                         <span>Payment:</span> <strong>{effectiveOffer.payment_days} days</strong>
+                    </span>
+                )}
+                {effectiveOffer.payment_days == null && effectiveOffer.payment_terms_text && (
+                    <span className="flex items-center gap-1 text-xs border rounded-full px-2 py-1 border-gray-200 text-gray-600">
+                        <CreditCard className="h-3.5 w-3.5 text-gray-400" />
+                        <span>Payment:</span> <strong>{effectiveOffer.payment_terms_text}</strong>
                     </span>
                 )}
             </div>
@@ -1557,8 +1616,13 @@ function ManualQuoteEntryCard({
     refetch: () => void
 }) {
     const submitManualQuote = useSubmitManualQuote()
+    const requestMissingFields = useRequestMissingFields()
     const pending = negotiation.pending_counteroffer as Record<string, any> | null
     const reason = pending?.reason as string | undefined
+    const supplierNotified = Boolean(pending?.supplier_notified)
+    // The buyer makes a deliberate forgot-vs-misread call. Default to whichever is
+    // most likely: if we've already asked the supplier, lean to manual entry.
+    const [resolveMode, setResolveMode] = useState<'ask' | 'manual' | null>(supplierNotified ? 'manual' : null)
     const allowed = ['quote_extraction_failed', 'incomplete_quote', 'unquoted_line_items'].includes(reason || '')
     const extracted = pending?.extracted_offer || {}
     const rfqLines = rfq?.line_items || EMPTY_RFQ_LINES
@@ -1571,6 +1635,7 @@ function ManualQuoteEntryCard({
     const [quantity, setQuantity] = useState('')
     const [deliveryDays, setDeliveryDays] = useState('')
     const [paymentDays, setPaymentDays] = useState('')
+    const [paymentTermsText, setPaymentTermsText] = useState('')
     const [conditions, setConditions] = useState('')
     const [currency, setCurrency] = useState('')
     const [linePrices, setLinePrices] = useState<Record<number, string>>({})
@@ -1581,6 +1646,7 @@ function ManualQuoteEntryCard({
         setCurrency(extracted.currency || constraints?.currency || '')
         setDeliveryDays(extracted.delivery_days != null ? String(extracted.delivery_days) : '')
         setPaymentDays(extracted.payment_days != null ? String(extracted.payment_days) : '')
+        setPaymentTermsText(extracted.payment_terms_text || '')
         setConditions(extracted.conditions || '')
         if (isMulti) {
             const extractedByLine = new Map((extracted.line_items || []).map((li: any) => [li.line_number, li]))
@@ -1608,15 +1674,38 @@ function ManualQuoteEntryCard({
         extracted.delivery_days,
         extracted.line_items,
         extracted.payment_days,
+        extracted.payment_terms_text,
         extracted.quantity,
         extracted.unit_price,
         rfqLines,
     ])
 
     if (!allowed) return null
+    const isExtractionFailure = reason === 'quote_extraction_failed'
+    const missingFields = Array.isArray(pending?.missing_fields) ? pending.missing_fields : []
+    const cardTitle = isExtractionFailure
+        ? 'Supplier quote could not be read automatically'
+        : reason === 'unquoted_line_items'
+            ? 'Supplier quote is missing line-item pricing'
+            : 'Supplier quote is missing required fields'
+    const cardDescription = isExtractionFailure
+        ? 'The system could not confidently identify pricing and commercial terms from the supplier message or attachment. Open the quote document, then either enter the quote manually or ask the supplier to resend it in a clearer format.'
+        : 'A required field came back empty. That can mean the supplier left it out — or that it’s in the document but wasn’t read correctly. Check the supplier document, then choose how to resolve it.'
+    const supplierSourceHeading = isExtractionFailure
+        ? 'Quote document — open it to transcribe the quote'
+        : 'Quote document — open it to check the missing field'
 
     const submit = async () => {
         try {
+            // Payment terms can be EITHER a number of net days OR free-text
+            // (milestone/percentage, e.g. "50% advance, 50% on delivery").
+            // The backend requires exactly one to be present.
+            const paymentDaysNum = paymentDays.trim() !== '' ? Number(paymentDays) : undefined
+            const paymentTermsTextVal = paymentTermsText.trim() || undefined
+            if (paymentDaysNum === undefined && !paymentTermsTextVal) {
+                toast.error('Enter payment terms — either a number of net days (e.g. 30) or free-text terms (e.g. "50% advance, 50% on delivery")')
+                return
+            }
             if (isMulti) {
                 const line_items = rfqLines.map((line: any) => ({
                     line_number: line.line_number,
@@ -1633,15 +1722,16 @@ function ManualQuoteEntryCard({
                         multi_item: {
                             line_items,
                             delivery_days: Number(deliveryDays),
-                            payment_days: Number(paymentDays),
+                            payment_days: paymentDaysNum,
+                            payment_terms_text: paymentTermsTextVal,
                             conditions: conditions || undefined,
                             currency: currency || undefined,
                         },
                     },
                 })
             } else {
-                if (!unitPrice || !quantity || !deliveryDays || paymentDays === '') {
-                    toast.error('Enter price, quantity, delivery days, and payment days')
+                if (!unitPrice || !quantity || !deliveryDays) {
+                    toast.error('Enter price, quantity, and delivery days')
                     return
                 }
                 await submitManualQuote.mutateAsync({
@@ -1651,7 +1741,8 @@ function ManualQuoteEntryCard({
                             unit_price: Number(unitPrice),
                             quantity: Number(quantity),
                             delivery_days: Number(deliveryDays),
-                            payment_days: Number(paymentDays),
+                            payment_days: paymentDaysNum,
+                            payment_terms_text: paymentTermsTextVal,
                             conditions: conditions || undefined,
                             currency: currency || undefined,
                         },
@@ -1665,14 +1756,24 @@ function ManualQuoteEntryCard({
         }
     }
 
+    const askSupplier = async () => {
+        try {
+            await requestMissingFields.mutateAsync(negotiation.id)
+            toast.success('Request sent — waiting for the supplier to resend')
+            refetch()
+        } catch (err: any) {
+            toast.error(getApiError(err, 'Failed to send request to supplier'))
+        }
+    }
+
     return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-4">
             <div>
                 <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
-                    <AlertTriangle className="h-3.5 w-3.5" /> Manual Quote Entry Required
+                    <AlertTriangle className="h-3.5 w-3.5" /> {cardTitle}
                 </p>
                 <p className="text-sm text-amber-900 mt-1">
-                    The supplier quote could not be fully extracted. Enter the values from the supplier document below to continue the normal rule-check and counteroffer pipeline.
+                    {cardDescription}
                 </p>
                 <div className="mt-2">
                     <ManualEntryHelpPanel />
@@ -1686,26 +1787,104 @@ function ManualQuoteEntryCard({
                 </div>
             )}
 
+            {missingFields.length > 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-100/60 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-amber-700 mb-1">Fields the AI could not read from the quote</p>
+                    <ul className="list-disc list-inside text-sm text-amber-900">
+                        {missingFields.map((f: string) => (
+                            <li key={f}>{f}</li>
+                        ))}
+                    </ul>
+                    <p className="text-[11px] text-amber-700 mt-1">
+                        Check the supplier document — if these are actually present, enter them below and continue. (Tip: milestone
+                        terms like &ldquo;50% advance, 50% on delivery&rdquo; go in <strong>Payment Terms (text)</strong>.)
+                    </p>
+                </div>
+            )}
+
+            {isExtractionFailure && missingFields.length === 0 && (
+                <div className="rounded-lg border border-amber-300 bg-amber-100/60 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-amber-700 mb-1">What to check in the quote</p>
+                    <ul className="list-disc list-inside text-sm text-amber-900">
+                        <li>Unit price for each RFQ line item</li>
+                        <li>Quoted quantity for each line item</li>
+                        <li>Delivery lead time</li>
+                        <li>Payment terms</li>
+                        <li>Currency, if stated</li>
+                    </ul>
+                    <p className="text-[11px] text-amber-700 mt-1">
+                        No exact missing-field list is available because extraction failed before the quote could be structured.
+                    </p>
+                </div>
+            )}
+
             {sourceMsg && (
                 <div className="rounded-lg border border-amber-200 bg-white p-3">
                     <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">Supplier source message</p>
                     <p className="text-xs text-gray-700 whitespace-pre-wrap max-h-32 overflow-auto">{sourceMsg.message}</p>
                     {sourceMsg.attachments && sourceMsg.attachments.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                            {sourceMsg.attachments.map((att: any) => (
-                                <button
-                                    key={att.id || att.filename}
-                                    onClick={() => downloadNegotiationAttachment(negotiation.id, sourceMsg.id, att.id, att.filename || 'attachment')}
-                                    className="text-[10px] rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800 hover:bg-amber-100"
-                                >
-                                    Download {att.filename || 'attachment'}
-                                </button>
-                            ))}
+                        <div className="mt-2">
+                            <p className="text-[10px] uppercase tracking-wide text-amber-600 mb-1">{supplierSourceHeading}</p>
+                            <div className="flex flex-wrap gap-2">
+                                {sourceMsg.attachments.map((att: any) => (
+                                    <AttachmentButton
+                                        key={att.id || att.filename}
+                                        att={att}
+                                        negotiationId={negotiation.id}
+                                        messageId={sourceMsg.id}
+                                    />
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
             )}
 
+            {/* Two explicit choices — the buyer makes the forgot-vs-misread call. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button
+                    onClick={() => setResolveMode('ask')}
+                    className={`text-left rounded-lg border p-3 text-sm transition ${resolveMode === 'ask' ? 'border-amber-500 bg-white ring-1 ring-amber-400' : 'border-amber-200 bg-white/60 hover:bg-white'}`}
+                >
+                    <span className="font-medium text-amber-900">Ask the supplier to resend</span>
+                    <span className="block text-[11px] text-amber-700 mt-0.5">
+                        {isExtractionFailure ? 'The quote is unreadable or not clear enough to process.' : 'The field is genuinely missing from their quote.'}
+                    </span>
+                </button>
+                <button
+                    onClick={() => setResolveMode('manual')}
+                    className={`text-left rounded-lg border p-3 text-sm transition ${resolveMode === 'manual' ? 'border-amber-500 bg-white ring-1 ring-amber-400' : 'border-amber-200 bg-white/60 hover:bg-white'}`}
+                >
+                    <span className="font-medium text-amber-900">{isExtractionFailure ? 'I can read the quote — I’ll enter it myself' : 'I can see it — I’ll enter it myself'}</span>
+                    <span className="block text-[11px] text-amber-700 mt-0.5">
+                        {isExtractionFailure ? 'Transcribe the price and terms from the supplier document.' : 'It’s in the document; the AI just misread it.'}
+                    </span>
+                </button>
+            </div>
+
+            {resolveMode === 'ask' && (
+                <div className="rounded-lg border border-amber-200 bg-white p-3 space-y-2">
+                    <p className="text-sm text-amber-900">
+                        We&rsquo;ll email the supplier on the existing thread asking them to resend a complete quote
+                        {missingFields.length > 0
+                            ? <> with: <strong>{missingFields.join(', ')}</strong>.</>
+                            : isExtractionFailure
+                                ? <> in a clearer format with item prices, quantities, delivery lead time, payment terms, and currency.</>
+                            : <>.</>}
+                        {supplierNotified && <span className="block text-[11px] text-amber-600 mt-1">Note: the supplier has already been asked once.</span>}
+                    </p>
+                    <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white gap-1.5"
+                        disabled={requestMissingFields.isPending}
+                        onClick={askSupplier}
+                    >
+                        {requestMissingFields.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                        Send request to supplier
+                    </Button>
+                </div>
+            )}
+
+            {resolveMode === 'manual' && (
+            <>
             {isMulti ? (
                 <div className="rounded-lg border border-amber-200 bg-white overflow-hidden">
                     <table className="w-full text-xs">
@@ -1757,13 +1936,23 @@ function ManualQuoteEntryCard({
                     <Input type="number" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)} className="mt-1 bg-white" />
                 </div>
                 <div>
-                    <Label className="text-xs text-amber-700">Payment Days</Label>
-                    <Input type="number" value={paymentDays} onChange={e => setPaymentDays(e.target.value)} className="mt-1 bg-white" />
+                    <Label className="text-xs text-amber-700">Payment Days (net)</Label>
+                    <Input type="number" value={paymentDays} onChange={e => setPaymentDays(e.target.value)} placeholder="e.g. 30" className="mt-1 bg-white" />
                 </div>
                 <div>
                     <Label className="text-xs text-amber-700">Currency</Label>
                     <Input value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} placeholder={constraints?.currency || 'USD'} className="mt-1 bg-white" />
                 </div>
+            </div>
+            <div>
+                <Label className="text-xs text-amber-700">Payment Terms (text)</Label>
+                <Input value={paymentTermsText} onChange={e => setPaymentTermsText(e.target.value)}
+                    placeholder='e.g. "50% advance, 50% on delivery"'
+                    className="mt-1 bg-white" />
+                <p className="text-[11px] text-amber-700 mt-1">
+                    Use <strong>Payment Days</strong> for net-day terms (Net 30), or <strong>Payment Terms (text)</strong> for
+                    milestone/percentage terms. At least one is required.
+                </p>
             </div>
             <div>
                 <Label className="text-xs text-amber-700">Conditions / Notes</Label>
@@ -1778,6 +1967,8 @@ function ManualQuoteEntryCard({
                 {submitManualQuote.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
                 Save Quote & Continue
             </Button>
+            </>
+            )}
         </div>
     )
 }
@@ -2132,12 +2323,13 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
     const pending = negotiation.pending_counteroffer as Record<string, any> | null
     if (!pending) return null
     const reason = pending.reason as string | undefined
-    if (reason !== 'intervention_required' && reason !== 'spec_deviation' && reason !== 'max_rounds_reached') return null
+    if (reason !== 'intervention_required' && reason !== 'spec_deviation' && reason !== 'max_rounds_reached' && reason !== 'price_exceeds_max_repeated') return null
 
     const unknownParams = pending.unknown_parameters as string[] | undefined
     const specDeviation = pending.spec_deviation as string | undefined
     const softMaxDecision = pending.soft_max_decision as Record<string, any> | undefined
     const isSoftMaxRounds = reason === 'max_rounds_reached'
+    const isPriceExceeded = reason === 'price_exceeds_max_repeated'
 
     const proceedAnyway = async () => {
         try {
@@ -2178,7 +2370,7 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
     return (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
             <p className="text-xs font-bold text-amber-700 uppercase tracking-wide flex items-center gap-1.5">
-                <AlertTriangle className="h-3.5 w-3.5" /> {isSoftMaxRounds ? 'Negotiation Paused — Max Rounds Reached' : 'Negotiation Paused — Supplier Deviated from Brief'}
+                <AlertTriangle className="h-3.5 w-3.5" /> {isSoftMaxRounds ? 'Negotiation Paused — Max Rounds Reached' : isPriceExceeded ? 'Negotiation Paused — Supplier Repeatedly Above Ceiling' : 'Negotiation Paused — Supplier Deviated from Brief'}
             </p>
             {isSoftMaxRounds && (
                 <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-2">
@@ -2210,6 +2402,16 @@ function InterventionCard({ negotiation, refetch }: { negotiation: Negotiation; 
                             </span>
                         )}
                     </div>
+                </div>
+            )}
+            {isPriceExceeded && (
+                <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-2">
+                    <p className="text-sm text-amber-950 font-medium">
+                        The supplier has exceeded your budget ceiling {pending.above_max_strike ?? 'multiple'} times.
+                    </p>
+                    <p className="text-xs text-amber-900">
+                        You can override and let the AI continue negotiating, ask the supplier to revise their quote, or end the negotiation.
+                    </p>
                 </div>
             )}
             {unknownParams && unknownParams.length > 0 && (
@@ -3701,6 +3903,12 @@ const NEGOTIATION_REFRESH_EVENTS = new Set([
     'max_rounds_reached',
     'negotiation_accepted',
     'final_quote_variance',
+    'bafo_requested',
+    'bafo_received',
+    'paused',
+    'resumed',
+    'hard_violation',
+    'negative_signal',
 ])
 
 const MESSAGE_REFRESH_EVENTS = new Set([
@@ -3724,6 +3932,7 @@ const QUOTE_REVISION_REFRESH_EVENTS = new Set([
     'intervention_required',
     'agreement_reached',
     'negotiation_failed',
+    'bafo_received',
 ])
 
 const CLARIFICATION_REFRESH_EVENTS = new Set([

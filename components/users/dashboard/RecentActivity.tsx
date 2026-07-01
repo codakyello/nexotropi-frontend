@@ -8,6 +8,7 @@ const STATUS_LABEL: Record<string, string> = {
     awaiting_rfq: 'Awaiting RFQ upload',
     active: 'Active — AI negotiating',
     paused: 'Paused',
+    awarded: 'Awarded',
     ended: 'Completed',
     cancelled: 'Cancelled',
     awaiting_constraints: 'Awaiting constraints',

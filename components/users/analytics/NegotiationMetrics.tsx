@@ -10,6 +10,7 @@ const STATUS_COLOR: Record<string, string> = {
     awaiting_rfq: 'bg-sky-50 text-sky-700',
     active: 'bg-blue-50 text-blue-700',
     paused: 'bg-orange-50 text-orange-600',
+    awarded: 'bg-emerald-50 text-emerald-700',
     ended: 'bg-green-50 text-green-700',
     cancelled: 'bg-red-50 text-red-600',
     awaiting_constraints: 'bg-gray-100 text-gray-500',
@@ -24,7 +25,7 @@ function buildMonthlyChart(sessions: Session[]) {
         const label = d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
         if (!counts[key]) counts[key] = { month: label, active: 0, ended: 0, cancelled: 0 }
         if (s.status === 'active' || s.status === 'paused' || s.status === 'awaiting_rfq' || s.status === 'awaiting_constraints') counts[key].active++
-        else if (s.status === 'ended') counts[key].ended++
+        else if (s.status === 'awarded' || s.status === 'ended') counts[key].ended++
         else if (s.status === 'cancelled') counts[key].cancelled++
     })
 
@@ -48,7 +49,7 @@ const NegotiationMetrics = () => {
 
     const all = sessions ?? []
     const active = all.filter((s) => s.status === 'active').length
-    const ended = all.filter((s) => s.status === 'ended').length
+    const ended = all.filter((s) => s.status === 'awarded' || s.status === 'ended').length
     const cancelled = all.filter((s) => s.status === 'cancelled').length
     const awaiting = all.filter((s) => s.status === 'awaiting_rfq' || s.status === 'awaiting_constraints' || s.status === 'paused').length
     const completionRate = all.length > 0 ? Math.round((ended / all.length) * 100) : 0

@@ -14,6 +14,7 @@ const STATUS_COLOR: Record<string, string> = {
     awaiting_rfq: 'border-sky-500/30 bg-sky-500/10 text-sky-600',
     active: 'border-primary/30 bg-primary/10 text-primary shadow-[0_0_10px_0_var(--color-primary)]/10',
     paused: 'border-orange-500/30 bg-orange-500/10 text-orange-500',
+    awarded: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-500',
     ended: 'border-green-500/30 bg-green-500/10 text-green-500',
     cancelled: 'border-destructive/30 bg-destructive/10 text-destructive',
     awaiting_constraints: 'border-muted-foreground/30 bg-muted-foreground/10 text-muted-foreground',
@@ -23,6 +24,7 @@ const PROGRESS_COLOR: Record<string, string> = {
     awaiting_rfq: 'bg-sky-500',
     active: 'bg-primary shadow-[0_0_10px_0_var(--color-primary)]',
     paused: 'bg-orange-500',
+    awarded: 'bg-emerald-500',
     ended: 'bg-green-500',
     cancelled: 'bg-destructive',
     awaiting_constraints: 'bg-muted-foreground',
@@ -37,7 +39,7 @@ const PHASE_PROGRESS: Record<string, number> = {
 const sessionProgress = (session: Session) => {
     if (session.status === 'awaiting_rfq') return 5
     if (session.status === 'awaiting_constraints') return 15
-    if (session.status === 'ended' || session.status === 'cancelled') return 100
+    if (session.status === 'awarded' || session.status === 'ended' || session.status === 'cancelled') return 100
     return PHASE_PROGRESS[session.negotiation_phase] ?? 10
 }
 

@@ -11,7 +11,7 @@ const DashboardMetrics = () => {
     const { data: suppliers, isLoading: loadingSuppliers } = useSuppliers()
 
     const activeSessions = sessions?.filter((s: Session) => s.status === 'active').length ?? 0
-    const endedSessions = sessions?.filter((s: Session) => s.status === 'ended').length ?? 0
+    const endedSessions = sessions?.filter((s: Session) => s.status === 'awarded' || s.status === 'ended').length ?? 0
     const totalSessions = sessions?.length ?? 0
     const totalSuppliers = suppliers?.length ?? 0
     const activeSuppliers = suppliers?.filter((s: any) => s.status === 'active').length ?? 0
