@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { buildRfqMeta, compactRfqDescription } from '@/lib/rfqDisplay'
 import { getApiError } from '@/lib/utils'
@@ -79,6 +80,7 @@ const SESSION_STATUS_COLOR: Record<string, string> = {
     awaiting_constraints: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     active: 'bg-green-100 text-green-800 border-green-200',
     paused: 'bg-orange-100 text-orange-800 border-orange-200',
+    awarded: 'bg-emerald-100 text-emerald-800 border-emerald-200',
     ended: 'bg-gray-200 text-gray-700 border-gray-300',
     cancelled: 'bg-red-100 text-red-800 border-red-200',
 }
@@ -783,6 +785,7 @@ const EVENT_BORDER: Record<string, string> = {
     email_received: 'border-blue-400',
     email_sent: 'border-green-400',
     agreement_reached: 'border-emerald-500',
+    negotiation_accepted: 'border-emerald-500',
     negotiation_failed: 'border-red-400',
     approval_requested: 'border-purple-400',
     approval_granted: 'border-green-500',
@@ -790,6 +793,15 @@ const EVENT_BORDER: Record<string, string> = {
     round_complete: 'border-gray-300',
     intervention_required: 'border-amber-500',
     rule_check_failed: 'border-red-500',
+    bafo_requested: 'border-amber-400',
+    bafo_received: 'border-emerald-400',
+    timed_out: 'border-red-400',
+    max_rounds_reached: 'border-amber-500',
+    hard_violation: 'border-red-500',
+    negative_signal: 'border-red-400',
+    paused: 'border-gray-400',
+    resumed: 'border-blue-400',
+    human_override: 'border-purple-400',
 }
 
 function upsertSessionActivityEvent(existing: NegotiationEvent[], incoming: NegotiationEvent) {
@@ -833,6 +845,8 @@ const NegotiationSummary = () => {
     const [awardSupplier, setAwardSupplier] = useState('')
     const [splitAwardSelections, setSplitAwardSelections] = useState<Record<string, string>>({})
     const [showStartNegotiatingModal, setShowStartNegotiatingModal] = useState(false)
+    const [showStartBAFOModal, setShowStartBAFOModal] = useState(false)
+    const [bafoSelections, setBAFOSelections] = useState<Set<string>>(new Set())
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [showAddSuppliersModal, setShowAddSuppliersModal] = useState(false)
     const [addSupplierSelections, setAddSupplierSelections] = useState<Set<string>>(new Set())
@@ -926,7 +940,8 @@ const NegotiationSummary = () => {
     if (!session) return null
 
     const supplierMap = new Map(suppliers?.map((s: Supplier) => [s.id, s]) ?? [])
-    const isTerminal = ['cancelled', 'ended'].includes(session.status)
+    const activeNegotiations = (negotiations ?? []).filter((neg: Negotiation) => neg.status === 'active')
+    const isTerminal = ['awarded', 'cancelled', 'ended'].includes(session.status)
     const rfqMeta = buildRfqMeta(rfq?.description)
     const rfqDescription = compactRfqDescription(rfq?.description)
     const isMultiItemRfq = Boolean(rfq?.line_items?.length)
@@ -1045,7 +1060,10 @@ const NegotiationSummary = () => {
                             )}
                             {session.status === 'active' && session.negotiation_phase === 'negotiating' && (
                                 <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white border-0"
-                                    onClick={() => doSessionAction(startBAFO, id, 'BAFO phase started')}>
+                                    onClick={() => {
+                                        setBAFOSelections(new Set(activeNegotiations.map((neg: Negotiation) => neg.id)))
+                                        setShowStartBAFOModal(true)
+                                    }}>
                                     <Trophy className="h-3 w-3 mr-1" /> Start BAFO
                                 </Button>
                             )}
@@ -1232,6 +1250,79 @@ const NegotiationSummary = () => {
                     </div>
                 )
             })()}
+
+            {/* ── Start BAFO supplier selection modal ──────────────────── */}
+            {showStartBAFOModal && (
+                <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-xl p-6 max-w-lg w-full border border-gray-200">
+                        <h3 className="font-bold text-gray-900 text-lg mb-2">Start BAFO</h3>
+                        <div className="text-sm text-gray-600 space-y-2 mb-4">
+                            <p>Select the active suppliers that should receive the best-and-final-offer request.</p>
+                            <p className="text-xs text-gray-500">Leaving all selected preserves the current all-active behavior.</p>
+                        </div>
+
+                        {activeNegotiations.length === 0 ? (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                No active supplier lanes are available for BAFO.
+                            </div>
+                        ) : (
+                            <div className="max-h-72 overflow-auto rounded-lg border border-gray-200 divide-y divide-gray-100">
+                                {activeNegotiations.map((neg: Negotiation) => {
+                                    const supplier = supplierMap.get(neg.supplier_id)
+                                    const checked = bafoSelections.has(neg.id)
+                                    return (
+                                        <label key={neg.id} className="flex items-start gap-3 px-3 py-3 cursor-pointer hover:bg-gray-50">
+                                            <Checkbox
+                                                checked={checked}
+                                                onCheckedChange={(value: boolean | 'indeterminate') => {
+                                                    setBAFOSelections(prev => {
+                                                        const next = new Set(prev)
+                                                        if (value) next.add(neg.id)
+                                                        else next.delete(neg.id)
+                                                        return next
+                                                    })
+                                                }}
+                                            />
+                                            <span className="min-w-0">
+                                                <span className="block text-sm font-medium text-gray-900 truncate">
+                                                    {supplier?.name || supplier?.company || 'Supplier'}
+                                                </span>
+                                                <span className="block text-xs text-gray-500 truncate">
+                                                    {supplier?.email || 'No email available'} · round {neg.current_round}
+                                                </span>
+                                            </span>
+                                        </label>
+                                    )
+                                })}
+                            </div>
+                        )}
+
+                        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-xs text-gray-500">
+                                {bafoSelections.size} of {activeNegotiations.length} active supplier{activeNegotiations.length === 1 ? '' : 's'} selected
+                            </p>
+                            <div className="flex gap-2">
+                                <Button variant="outline" onClick={() => setShowStartBAFOModal(false)}>Cancel</Button>
+                                <Button
+                                    className="bg-amber-500 hover:bg-amber-600 text-white"
+                                    disabled={activeNegotiations.length === 0 || bafoSelections.size === 0 || startBAFO.isPending}
+                                    onClick={() => {
+                                        doSessionAction(
+                                            startBAFO,
+                                            { id, negotiation_ids: Array.from(bafoSelections) },
+                                            'BAFO phase started'
+                                        )
+                                        setShowStartBAFOModal(false)
+                                    }}
+                                >
+                                    {startBAFO.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trophy className="h-4 w-4 mr-2" />}
+                                    Request BAFO
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* ── Delete session confirmation modal ─────────────────────── */}
             {showDeleteConfirm && (

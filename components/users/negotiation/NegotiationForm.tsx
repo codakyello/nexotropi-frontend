@@ -92,8 +92,12 @@ const REQUIRED_RFQ_FIELDS = [
     { label: 'Submission deadline', hint: 'The date by which suppliers must submit their quote — an acknowledgment is not enough' },
     { label: 'Delivery location', hint: 'Where goods should be shipped or performed' },
     { label: 'Payment terms', hint: 'The payment basis suppliers should quote against, such as Net 30' },
-    { label: 'Tax basis', hint: 'Optional: whether quoted prices should be tax-inclusive or tax-exclusive' },
 ]
+
+const stripOriginalFileMetadata = (result: RFQExtractionResult): RFQExtractionResult => {
+    const { original_file_b64: _originalFileB64, original_filename: _originalFilename, ...rest } = result
+    return rest
+}
 
 const normalizeCurrencyCode = (value: unknown): string | null => {
     if (typeof value !== 'string') return null
@@ -619,7 +623,10 @@ const NegotiationForm = () => {
             reader.onload = e => setUploadedText((e.target?.result as string) || '')
             reader.readAsText(file)
         } else {
-            setUploadedText(`[File: ${file.name}]`)
+            // Non-text uploads carry no inline body — the file is attached
+            // server-side. Keep content empty so the backend cover note is used
+            // rather than a filename placeholder leaking into the email body.
+            setUploadedText('')
         }
     }
 
@@ -646,10 +653,10 @@ const NegotiationForm = () => {
         try {
             const result = await extractRFQFile.mutateAsync({ sessionId, file: uploadedFile })
             setStep2ProcessingLabel('Checking required RFQ fields…')
-            // Store extracted text so we can pass it to createRFQ in the next step
-            // (the backend extracted the text; we use fields to reconstruct a summary)
-            const sourceText = uploadedFile.name
-            setUploadedText(sourceText)
+            // Do NOT store the filename as content — the uploaded document is the
+            // RFQ content and is attached server-side. Sending the filename here
+            // would render it as the supplier email body. Leave content empty so
+            // the backend cover note is used.
 
             setExtraction(result)
             // Seed fieldValues from extracted values (for the Procurement Requirements display)
@@ -696,7 +703,8 @@ const NegotiationForm = () => {
             let savedRfqData: any = null
             try {
                 setStep2ProcessingLabel('Saving RFQ draft…')
-                const originalFileB64 = await fileToBase64(uploadedFile)
+                const originalFileB64 = result.original_file_b64 || await fileToBase64(uploadedFile)
+                const originalFilename = result.original_filename || uploadedFile.name
                 const documentGoverningFields = buildDocumentGoverningFields(result, initial)
                 savedRfqData = await createRFQ.mutateAsync({
                     sessionId,
@@ -705,12 +713,12 @@ const NegotiationForm = () => {
                         response_deadline: documentGoverningFields?.response_deadline,
                         line_items: extractedLineItems.length > 0 ? extractedLineItems : undefined,
                         original_file_b64: originalFileB64,
-                        original_filename: uploadedFile.name,
+                        original_filename: originalFilename,
                         document_governing_fields: documentGoverningFields,
-                        extraction_result: result,
+                        extraction_result: stripOriginalFileMetadata(result),
                     },
                 })
-                setSavedRfqFilename(uploadedFile.name)
+                setSavedRfqFilename(originalFilename)
                 toast.success('RFQ draft saved. You can leave and resume without reuploading.')
             } catch (saveErr: any) {
                 toast.error(getApiError(saveErr, 'RFQ was extracted, but saving the draft failed'))
@@ -818,8 +826,12 @@ const NegotiationForm = () => {
                 sessionId,
                 data: {
                     item_name: title,
-                    content: uploadedText || `[Uploaded file: ${savedRfqFilename || 'RFQ'}]`,
-                    description: uploadedText || `[Uploaded file: ${savedRfqFilename || 'RFQ'}]`,
+                    // For uploaded RFQs the attached document IS the content. Never
+                    // send a filename placeholder as `content` — the backend would
+                    // render it as the email body. Leave it empty so the backend's
+                    // cover note (cover_body) is used instead.
+                    content: uploadedText || '',
+                    description: uploadedText || '',
                     response_deadline: documentGoverningFields?.response_deadline,
                     line_items: isMultiItem ? lineItems : undefined,
                     document_governing_fields: documentGoverningFields,

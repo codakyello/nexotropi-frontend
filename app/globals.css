@@ -1,5 +1,11 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
 @import "tw-animate-css";
+
+@source "../app";
+@source "../components";
+@source "../lib";
+@source "../services";
+@source "../store";
 
 
 @theme inline {
@@ -54,6 +60,9 @@
 }
 
 :root {
+  --font-manrope: "Avenir Next", "Segoe UI", sans-serif;
+  --font-mono: "SFMono-Regular", "SF Mono", "Menlo", monospace;
+  --font-cormorant: "Iowan Old Style", "Times New Roman", serif;
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

@@ -448,16 +448,6 @@ export const useCreateIndustry = () => {
   });
 };
 
-export const useDeleteIndustry = () => {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      await api.delete(`/industries/${id}`);
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["industries"] }),
-  });
-};
-
 // ── Suppliers ────────────────────────────────────────────────────────────
 
 export const useSuppliers = () =>
@@ -621,6 +611,13 @@ export const useNegotiation = (id: string) =>
       return res.data.data;
     },
     enabled: !!id,
+    refetchInterval: (query) => {
+      const negotiation = query.state.data;
+      if (!negotiation) return false;
+      return ["ended", "failed", "timed_out", "successful"].includes(negotiation.status)
+        ? false
+        : 5000;
+    },
   });
 
 export const useBuyerActionCenter = () =>
@@ -794,14 +791,16 @@ export const useSubmitManualQuote = () => {
           unit_price: number;
           quantity: number;
           delivery_days: number;
-          payment_days: number;
+          payment_days?: number;
+          payment_terms_text?: string;
           conditions?: string;
           currency?: string;
         };
         multi_item?: {
           line_items: Array<{ line_number: number; unit_price: number; quantity?: number }>;
           delivery_days: number;
-          payment_days: number;
+          payment_days?: number;
+          payment_terms_text?: string;
           conditions?: string;
           currency?: string;
         };
@@ -844,7 +843,10 @@ export const useAcceptNegotiation = () => {
       return res.data.data;
     },
     onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
       qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+      qc.invalidateQueries({ queryKey: ["sessions", neg.session_id] });
+      qc.invalidateQueries({ queryKey: ["sessions"] });
     },
   });
 };
@@ -933,6 +935,22 @@ export const useRequestRequote = () => {
     onSuccess: (neg) => {
       qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
       qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+    },
+  });
+};
+
+export const useRequestMissingFields = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<ApiResponse<Negotiation>>(`/negotiations/${id}/request-missing-fields`);
+      return res.data.data;
+    },
+    onSuccess: (neg) => {
+      qc.invalidateQueries({ queryKey: ["negotiation", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiations", neg.session_id] });
+      qc.invalidateQueries({ queryKey: ["negotiation-events", neg.id] });
+      qc.invalidateQueries({ queryKey: ["negotiation-messages", neg.id] });
     },
   });
 };
@@ -1106,6 +1124,8 @@ export interface RFQExtractionResult {
   fields: ExtractedField[];
   line_items: RFQLineItemExtracted[];
   warning: string | null;
+  original_file_b64?: string | null;
+  original_filename?: string | null;
 }
 
 export interface DocumentGoverningFields {
@@ -1309,14 +1329,6 @@ export const useRetryRFQDelivery = () => {
   });
 };
 
-export const useAIEnhanceRFQ = () =>
-  useMutation({
-    mutationFn: async (data: { item_name: string; description?: string; answers?: Record<string, string> }) => {
-      const res = await api.post<ApiResponse>("/rfqs/ai-enhance", data);
-      return res.data.data;
-    },
-  });
-
 // ── Session Actions ──────────────────────────────────────────────────────
 
 export const usePauseSession = () => {
@@ -1423,11 +1435,14 @@ export const useUpdateConstraints = () => {
 export const useStartBAFO = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.post<ApiResponse<Session>>(`/sessions/${id}/start-bafo`);
+    mutationFn: async (args: string | { id: string; negotiation_ids?: string[] }) => {
+      const id = typeof args === "string" ? args : args.id;
+      const payload = typeof args === "string" ? {} : { negotiation_ids: args.negotiation_ids };
+      const res = await api.post<ApiResponse<Session>>(`/sessions/${id}/start-bafo`, payload);
       return res.data.data;
     },
-    onSuccess: (_, id) => {
+    onSuccess: (_, args) => {
+      const id = typeof args === "string" ? args : args.id;
       qc.invalidateQueries({ queryKey: ["sessions"] });
       qc.invalidateQueries({ queryKey: ["session-bafo-board", id] });
       qc.invalidateQueries({ queryKey: ["session-competitive-intelligence", id] });
@@ -1546,17 +1561,6 @@ export const useNylasDisconnect = () => {
     },
   });
 };
-
-// ── User ──────────────────────────────────────────────────────────────────
-
-export const useCurrentUser = () =>
-  useQuery({
-    queryKey: ["current-user"],
-    queryFn: async () => {
-      const res = await api.get<ApiResponse>("/auth/user/me");
-      return res.data.data;
-    },
-  });
 
 // ── Attachment Download ───────────────────────────────────────────────────
 
